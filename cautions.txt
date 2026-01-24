@@ -1,0 +1,34 @@
+1. State management is your real enemy
+
+Orders have multiple states: Draft → Sent → Preparing → Paid → Completed
+If this isn’t centralized, your UI will desync fast.
+
+2. Session logic must be strict
+
+No order without an open session
+
+No payment after session close
+
+Reports must be session-aware, not just date-based
+
+3. Kitchen Display ≠ POS View
+
+Kitchen should never see prices or payment info
+
+Only quantities, products, and stages
+
+4. UPI QR flow must feel real
+
+Even if mocked, the transition from QR → Confirmed → Paid must update:
+
+Order
+
+Customer display
+
+5. Reports
+
+Reporting is where judges look hardest
+
+Anyone can build CRUD
+
+Few build filtered, dynamic analytics

@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gradient-to-br from-cafe-cream via-primary-50 to-orange-50;
+    @apply min-h-screen;
+    @apply font-sans;
+  }
+}
+
+@layer components {
+  .glass-effect {
+    @apply bg-white/80 backdrop-blur-lg border border-white/20 shadow-xl;
+  }
+  
+  .btn-primary {
+    @apply bg-gradient-to-r from-cafe-brown to-primary-700 text-white font-semibold py-3 px-6 rounded-lg;
+    @apply hover:from-primary-800 hover:to-cafe-brown transition-all duration-300;
+    @apply shadow-lg hover:shadow-xl transform hover:-translate-y-0.5;
+    @apply active:scale-95;
+  }
+  
+  .btn-secondary {
+    @apply bg-white text-cafe-brown font-semibold py-3 px-6 rounded-lg border-2 border-cafe-brown;
+    @apply hover:bg-cafe-brown hover:text-white transition-all duration-300;
+    @apply shadow-md hover:shadow-lg;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 rounded-lg border-2 border-gray-200;
+    @apply focus:border-cafe-brown focus:ring-2 focus:ring-cafe-brown/20;
+    @apply transition-all duration-200 outline-none;
+    @apply bg-white/90;
+  }
+  
+  .card {
+    @apply glass-effect rounded-2xl p-8;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-cafe-brown via-primary-600 to-cafe-orange bg-clip-text text-transparent;
+  }
+}
