@@ -117,7 +117,7 @@ const POSOrder = () => {
         setSelectedProductForVariant(null);
     };
 
-    const handlePay = async () => {
+    const handlePay = async (isDraft = false) => {
         if (cart.length === 0) return;
         if (!activeSession) {
             alert('No active session found!');
@@ -131,7 +131,9 @@ const POSOrder = () => {
             table_id: tableId, // From URL
             total_amount: total.toFixed(2),
             tax_amount: tax.toFixed(2),
-            payment_method: 'cash', // Default for now
+            payment_method: isDraft ? undefined : 'cash', // Draft defaults to NULL or logic defaults to 'cash'
+            status: isDraft ? 'draft' : 'paid',
+            kitchen_stage: 'to_cook',
             items: cart.map(item => ({
                 product_id: item.product.id,
                 variant_id: item.variant?.id,
@@ -145,7 +147,7 @@ const POSOrder = () => {
 
         try {
             await orderAPI.create(orderPayload);
-            alert('Order Placed Successfully!');
+            alert(isDraft ? 'Order sent to Kitchen!' : 'Order Paid Successfully!');
             setCart([]);
             navigate('/pos/floors'); // Go back to floor plan
         } catch (err) {
@@ -188,8 +190,8 @@ const POSOrder = () => {
                                 key={cat.id}
                                 onClick={() => setActiveCategoryId(cat.id)}
                                 className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-colors ${activeCategoryId === cat.id
-                                        ? 'bg-coffee-600 text-white shadow-md'
-                                        : 'bg-cream-100 text-espresso-700 hover:bg-cream-200'
+                                    ? 'bg-coffee-600 text-white shadow-md'
+                                    : 'bg-cream-100 text-espresso-700 hover:bg-cream-200'
                                     }`}
                                 style={activeCategoryId === cat.id ? { backgroundColor: cat.color || '#4b3621' } : {}}
                             >
@@ -304,16 +306,28 @@ const POSOrder = () => {
                         <span>${totals.total.toFixed(2)}</span>
                     </div>
 
-                    <button
-                        onClick={handlePay}
-                        disabled={cart.length === 0}
-                        className={`w-full py-4 rounded-lg font-bold text-lg mt-4 shadow-lg transition-transform active:scale-95 ${cart.length > 0
+                    <div className="flex gap-2 mt-4">
+                        <button
+                            onClick={() => handlePay(true)} // Draft/Send
+                            disabled={cart.length === 0}
+                            className={`flex-1 py-4 rounded-lg font-bold text-lg shadow-lg transition-transform active:scale-95 ${cart.length > 0
+                                ? 'bg-yellow-500 text-espresso-900 hover:bg-yellow-400'
+                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                }`}
+                        >
+                            Send to Kitchen
+                        </button>
+                        <button
+                            onClick={() => handlePay(false)} // Pay Now
+                            disabled={cart.length === 0}
+                            className={`flex-1 py-4 rounded-lg font-bold text-lg shadow-lg transition-transform active:scale-95 ${cart.length > 0
                                 ? 'bg-coffee-600 text-white hover:bg-coffee-700'
                                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                            }`}
-                    >
-                        Pay & Validate
-                    </button>
+                                }`}
+                        >
+                            Pay & Validate
+                        </button>
+                    </div>
                 </div>
             </div>
 

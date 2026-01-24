@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import { testConnection } from './config/database.js';
 import healthRoutes from './routes/health.js';
 import authRoutes from './routes/auth.js';
@@ -14,12 +16,27 @@ import orderRoutes from './routes/orders.js';
 dotenv.config();
 
 const app = express();
+const httpServer = createServer(app);
 const PORT = process.env.PORT || 3000;
+
+// Socket.io Setup
+const io = new Server(httpServer, {
+    cors: {
+        origin: "*", // Ensure this matches frontend in prod
+        methods: ["GET", "POST"]
+    }
+});
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Inject Socket.io
+app.use((req, res, next) => {
+    req.io = io;
+    next();
+});
 
 // Routes
 app.use('/api/health', healthRoutes);
@@ -71,9 +88,11 @@ const startServer = async () => {
         // Test database connection
         await testConnection();
 
-        app.listen(PORT, () => {
+        // Use httpServer instead of app
+        httpServer.listen(PORT, () => {
             console.log(`🚀 Server is running on http://localhost:${PORT}`);
             console.log(`📊 Environment: ${process.env.NODE_ENV}`);
+            console.log(`🔌 Socket.io ready`);
         });
     } catch (error) {
         console.error('Failed to start server:', error);

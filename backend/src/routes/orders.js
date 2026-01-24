@@ -31,7 +31,9 @@ router.post('/', authenticateToken, async (req, res) => {
             tax_amount,
             items, // Array of order lines
             payment_method = 'cash',
-            customer_id = null
+            customer_id = null,
+            status = 'paid', // 'draft' or 'paid'
+            kitchen_stage = 'to_cook'
         } = req.body;
 
         if (!items || items.length === 0) {
@@ -40,13 +42,14 @@ router.post('/', authenticateToken, async (req, res) => {
         }
 
         const orderNumber = await generateOrderNumber();
+        const paymentStatus = status === 'paid' ? 'paid' : 'unpaid';
 
         // 1. Create Order
         const [orderResult] = await connection.query(
             `INSERT INTO orders 
       (order_number, session_id, table_id, customer_id, total_amount, tax_amount, payment_status, payment_method, status, kitchen_stage) 
-      VALUES (?, ?, ?, ?, ?, ?, 'paid', ?, 'paid', 'to_cook')`,
-            [orderNumber, session_id, table_id, customer_id, total_amount, tax_amount, payment_method]
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [orderNumber, session_id, table_id, customer_id, total_amount, tax_amount, paymentStatus, payment_method, status, kitchen_stage]
         );
 
         const orderId = orderResult.insertId;
@@ -70,22 +73,36 @@ router.post('/', authenticateToken, async (req, res) => {
             );
         }
 
-        // Update active table status if table_id is provided?
-        // Not strictly needed if "active" just means physically available. 
-        // But maybe we want to mark it "Occupied". The schema has 'active' but that's for configuration.
-        // For now, no table status update in DB needed unless we track 'occupied'.
-
-        // Determine kitchen stage? defaults to 'to_cook'
-
         await connection.commit();
 
         // Fetch full order to return
+        // Fetch order with lines for kitchen display
         const [savedOrder] = await connection.query('SELECT * FROM orders WHERE id = ?', [orderId]);
+
+        // Also fetch lines if we want to emit full details?
+        // For MVP, sending order info is enough, kitchen can fetch details by ID. 
+        // But let's send minimal info or fetch fully if needed.
+        // Actually, let's fetch full order lines to emit complete object.
+        const [savedLines] = await connection.query(
+            `SELECT ol.*, p.name as product_name, p.unit, v.value as variant_value
+             FROM order_lines ol
+             JOIN products p ON ol.product_id = p.id
+             LEFT JOIN product_variants v ON ol.variant_id = v.id
+             WHERE ol.order_id = ?`,
+            [orderId]
+        );
+
+        const fullOrder = { ...savedOrder[0], lines: savedLines };
+
+        // Emit real-time event
+        if (req.io) {
+            req.io.emit('new_order', fullOrder);
+        }
 
         res.status(201).json({
             status: 'success',
             message: 'Order created successfully',
-            data: { order: savedOrder[0] }
+            data: { order: fullOrder }
         });
 
     } catch (error) {
