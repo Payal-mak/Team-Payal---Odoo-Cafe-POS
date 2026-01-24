@@ -8,6 +8,7 @@ import Products from './pages/Products';
 import FloorTables from './pages/FloorTables';
 import POSTerminal from './pages/POSTerminal';
 import OrderView from './pages/OrderView';
+import Kitchen from './pages/Kitchen';
 import './styles/theme.css';
 
 // Protected Route Component
@@ -113,6 +114,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <OrderView />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/kitchen"
+              element={
+                <ProtectedRoute>
+                  <Kitchen />
                 </ProtectedRoute>
               }
             />

@@ -202,11 +202,13 @@ const Dashboard = () => {
                     <div className="action-grid">
                         {/* Kitchen User sees Kitchen Display first */}
                         {user?.role === 'kitchen_user' && (
-                            <div className="action-card featured disabled">
+                            <div 
+                                className="action-card featured"
+                                onClick={() => navigate('/kitchen')}
+                            >
                                 <div className="action-icon">🖥️</div>
                                 <h3>Kitchen Display</h3>
                                 <p>View and manage kitchen orders</p>
-                                <span className="coming-soon">Coming Soon</span>
                             </div>
                         )}
 
@@ -259,11 +261,13 @@ const Dashboard = () => {
 
                         {/* Non-kitchen users can view Kitchen Display */}
                         {user?.role !== 'kitchen_user' && (
-                            <div className="action-card disabled">
+                            <div 
+                                className="action-card"
+                                onClick={() => navigate('/kitchen')}
+                            >
                                 <div className="action-icon">🖥️</div>
                                 <h3>Kitchen Display</h3>
                                 <p>View and manage kitchen orders</p>
-                                <span className="coming-soon">Coming Soon</span>
                             </div>
                         )}
 
