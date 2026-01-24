@@ -4,6 +4,10 @@ import dotenv from 'dotenv';
 import { testConnection } from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
+import ordersRoutes from './routes/ordersRoutes.js';
+import floorsRoutes from './routes/floorsRoutes.js';
+import categoriesRoutes from './routes/categoriesRoutes.js';
+import productsRoutes from './routes/productsRoutes.js';
 
 dotenv.config();
 
@@ -21,6 +25,10 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/orders', ordersRoutes);
+app.use('/api/floors', floorsRoutes);
+app.use('/api/categories', categoriesRoutes);
+app.use('/api/products', productsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
