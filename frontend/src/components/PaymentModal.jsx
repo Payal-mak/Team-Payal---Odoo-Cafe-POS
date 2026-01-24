@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import QRCode from 'react-qr-code';
 import '../styles/payment-modal.css';
 
 const PaymentModal = ({ order, isOpen, onClose, onPaymentSuccess, posConfigId = 1 }) => {
@@ -9,6 +10,8 @@ const PaymentModal = ({ order, isOpen, onClose, onPaymentSuccess, posConfigId = 
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
+    const [showUpiQr, setShowUpiQr] = useState(false);
+    const [upiPaymentString, setUpiPaymentString] = useState('');
 
     // Fetch payment methods when modal opens
     useEffect(() => {
@@ -42,12 +45,7 @@ const PaymentModal = ({ order, isOpen, onClose, onPaymentSuccess, posConfigId = 
         setError(null);
     };
 
-    const handleValidatePayment = async () => {
-        if (!selectedMethod) {
-            setError('Please select a payment method');
-            return;
-        }
-
+    const processPaymentDirect = async () => {
         setProcessing(true);
         setError(null);
 
@@ -72,6 +70,34 @@ const PaymentModal = ({ order, isOpen, onClose, onPaymentSuccess, posConfigId = 
             setError(err.response?.data?.message || 'Failed to process payment');
             setProcessing(false);
         }
+    };
+
+    const handleValidatePayment = async () => {
+        if (!selectedMethod) {
+            setError('Please select a payment method');
+            return;
+        }
+
+        // UPI-specific flow - show QR code
+        if (selectedMethod.type === 'upi') {
+            const upiString = `upi://pay?pa=${selectedMethod.upi_id}&am=${order.total_amount}&tn=Order${order.order_number}`;
+            setUpiPaymentString(upiString);
+            setShowUpiQr(true);
+            return;
+        }
+
+        // For Cash/Digital - process immediately
+        await processPaymentDirect();
+    };
+
+    const handleUpiConfirmed = async () => {
+        setShowUpiQr(false);
+        await processPaymentDirect();
+    };
+
+    const handleUpiCancel = () => {
+        setShowUpiQr(false);
+        setUpiPaymentString('');
     };
 
     const formatCurrency = (amount) => {
@@ -120,6 +146,48 @@ const PaymentModal = ({ order, isOpen, onClose, onPaymentSuccess, posConfigId = 
                     {/* Loading State */}
                     {loading ? (
                         <div className="payment-loading">Loading payment methods...</div>
+                    ) : showUpiQr ? (
+                        /* UPI QR Code Screen */
+                        <div className="upi-qr-screen">
+                            <div className="upi-qr-header">
+                                <h3>📱 UPI QR Payment</h3>
+                            </div>
+                            
+                            <div className="upi-qr-container">
+                                <QRCode value={upiPaymentString} size={256} />
+                            </div>
+
+                            <div className="upi-amount-display">
+                                <div className="upi-amount-label">Amount to Pay</div>
+                                <div className="upi-amount-value">
+                                    {formatCurrency(order.total_amount)}
+                                </div>
+                            </div>
+
+                            <div className="upi-instructions">
+                                <p>Scan this QR code with any UPI app</p>
+                                <p className="upi-apps-hint">
+                                    (Google Pay, PhonePe, Paytm, etc.)
+                                </p>
+                            </div>
+
+                            <div className="upi-qr-actions">
+                                <button
+                                    className="payment-btn payment-btn-secondary"
+                                    onClick={handleUpiCancel}
+                                    disabled={processing}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    className="payment-btn payment-btn-primary"
+                                    onClick={handleUpiConfirmed}
+                                    disabled={processing}
+                                >
+                                    {processing ? 'Processing...' : '✓ Confirmed'}
+                                </button>
+                            </div>
+                        </div>
                     ) : (
                         <>
                             {/* Payment Methods */}
