@@ -7,6 +7,14 @@
     justify-content: center;
     background: var(--bg-primary);
     padding: 20px;
+    position: relative;
+}
+
+.auth-container .theme-toggle {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    z-index: 10;
 }
 
 .auth-card {
