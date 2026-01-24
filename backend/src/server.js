@@ -8,6 +8,8 @@ import categoryRoutes from './routes/categories.js';
 import productRoutes from './routes/products.js';
 import floorRoutes from './routes/floors.js';
 import tableRoutes from './routes/tables.js';
+import sessionRoutes from './routes/sessions.js';
+import orderRoutes from './routes/orders.js';
 
 dotenv.config();
 
@@ -26,6 +28,8 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/floors', floorRoutes);
 app.use('/api/tables', tableRoutes);
+app.use('/api/sessions', sessionRoutes);
+app.use('/api/orders', orderRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
