@@ -125,6 +125,38 @@ export const closeSession = async (req, res) => {
 
         const totalSales = salesResult[0].total_sales;
 
+        // Get sales breakdown by payment method
+        const salesBreakdown = await query(`
+            SELECT 
+                payment_method,
+                COALESCE(SUM(total_amount), 0) as sales_total,
+                COUNT(*) as order_count
+            FROM orders
+            WHERE session_id = ? AND payment_status = 'paid'
+            GROUP BY payment_method
+        `, [id]);
+
+        // Organize breakdown into structured format
+        const breakdown = {
+            cash: { sales: 0, orders: 0 },
+            digital: { sales: 0, orders: 0 },
+            upi: { sales: 0, orders: 0 }
+        };
+
+        salesBreakdown.forEach(row => {
+            if (row.payment_method && breakdown[row.payment_method]) {
+                breakdown[row.payment_method].sales = parseFloat(row.sales_total);
+                breakdown[row.payment_method].orders = parseInt(row.order_count);
+            }
+        });
+
+        // Get total order count for the session
+        const orderCount = await query(`
+            SELECT COUNT(*) as total_orders
+            FROM orders
+            WHERE session_id = ?
+        `, [id]);
+
         // Close the session
         await query(`
             UPDATE pos_sessions 
@@ -144,6 +176,26 @@ export const closeSession = async (req, res) => {
             WHERE ps.id = ?
         `, [id]);
 
+        // Generate Session Summary JSON
+        const sessionSummary = {
+            session_id: closedSession[0].id,
+            pos_terminal: closedSession[0].pos_name,
+            responsible_user: closedSession[0].responsible_user,
+            open_date: closedSession[0].open_date,
+            close_date: closedSession[0].close_date,
+            total_orders: orderCount[0].total_orders,
+            total_sales: parseFloat(totalSales),
+            closing_balance: parseFloat(closing_balance),
+            sales_by_payment_method: {
+                total_cash_sales: breakdown.cash.sales,
+                cash_orders: breakdown.cash.orders,
+                total_digital_sales: breakdown.digital.sales,
+                digital_orders: breakdown.digital.orders,
+                total_upi_sales: breakdown.upi.sales,
+                upi_orders: breakdown.upi.orders
+            }
+        };
+
         res.json({
             success: true,
             message: 'Session closed successfully',
@@ -151,7 +203,8 @@ export const closeSession = async (req, res) => {
                 ...closedSession[0],
                 closing_balance: parseFloat(closing_balance),
                 total_sales: parseFloat(totalSales)
-            }
+            },
+            session_summary: sessionSummary
         });
     } catch (error) {
         console.error('Close session error:', error);

@@ -72,6 +72,27 @@
     font-size: 0.875rem;
 }
 
+/* Close Register Button */
+.close-register-btn {
+    padding: 0.5rem 1.25rem;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.close-register-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.35);
+}
+
 /* Main Content */
 .pos-main {
     flex: 1;

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { floorAPI, tableAPI, sessionAPI } from '../services/api';
 import Header from '../components/Header';
+import CloseRegisterModal from '../components/CloseRegisterModal';
 import '../styles/pos-terminal.css';
 
 const POSTerminal = () => {
@@ -13,6 +14,7 @@ const POSTerminal = () => {
     const [tables, setTables] = useState([]);
     const [currentSession, setCurrentSession] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isCloseRegisterOpen, setIsCloseRegisterOpen] = useState(false);
 
     useEffect(() => {
         checkSessionAndLoadData();
@@ -101,6 +103,12 @@ const POSTerminal = () => {
                     🟢 {currentSession?.pos_name} | Started: {formatTime(currentSession?.open_date)}
                 </span>
                 <span className="user-badge">👤 {user?.username}</span>
+                <button 
+                    className="close-register-btn"
+                    onClick={() => setIsCloseRegisterOpen(true)}
+                >
+                    🔐 Close Register
+                </button>
             </Header>
 
             <div className="pos-main">
@@ -170,6 +178,14 @@ const POSTerminal = () => {
                     </button>
                 </div>
             </footer>
+
+            {/* Close Register Modal */}
+            <CloseRegisterModal
+                isOpen={isCloseRegisterOpen}
+                onClose={() => setIsCloseRegisterOpen(false)}
+                session={currentSession}
+                onSessionClosed={() => setCurrentSession(null)}
+            />
         </div>
     );
 };
