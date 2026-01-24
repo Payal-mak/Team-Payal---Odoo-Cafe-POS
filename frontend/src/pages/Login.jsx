@@ -6,8 +6,8 @@ const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const { login, user } = useAuth();
+    const [localLoading, setLocalLoading] = useState(false);
+    const { login, user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
 
     // Redirect if already logged in
@@ -20,7 +20,7 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-        setLoading(true);
+        setLocalLoading(true);
 
         const result = await login(email, password);
 
@@ -35,9 +35,18 @@ const Login = () => {
             }
         } else {
             setError(result.error);
-            setLoading(false);
+            setLocalLoading(false);
         }
     };
+
+    // Show loading spinner while checking auth status
+    if (authLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-cream-50">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-coffee-600"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-cream-50 via-cream-100 to-coffee-50 flex items-center justify-center p-4">
@@ -75,7 +84,7 @@ const Login = () => {
                                 className="input-field"
                                 placeholder="Enter your email or username"
                                 required
-                                disabled={loading}
+                                disabled={localLoading}
                             />
                         </div>
 
@@ -92,17 +101,17 @@ const Login = () => {
                                 className="input-field"
                                 placeholder="Enter your password"
                                 required
-                                disabled={loading}
+                                disabled={localLoading}
                             />
                         </div>
 
                         {/* Login Button */}
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={localLoading}
                             className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {loading ? (
+                            {localLoading ? (
                                 <span className="flex items-center justify-center">
                                     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
