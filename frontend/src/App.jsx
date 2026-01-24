@@ -4,6 +4,8 @@ import { ThemeProvider } from './context/ThemeContext';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
+import Products from './pages/Products';
+import FloorTables from './pages/FloorTables';
 import './styles/theme.css';
 
 // Protected Route Component
@@ -77,6 +79,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/products"
+              element={
+                <ProtectedRoute>
+                  <Products />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/floors-tables"
+              element={
+                <ProtectedRoute>
+                  <FloorTables />
                 </ProtectedRoute>
               }
             />

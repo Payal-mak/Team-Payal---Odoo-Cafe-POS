@@ -3,6 +3,10 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { testConnection } from './config/database.js';
 import authRoutes from './routes/auth.routes.js';
+import productsRoutes from './routes/products.routes.js';
+import floorsRoutes from './routes/floors.routes.js';
+import dashboardRoutes from './routes/dashboard.routes.js';
+import sessionRoutes from './routes/session.routes.js';
 
 dotenv.config();
 
@@ -19,6 +23,10 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api', productsRoutes);
+app.use('/api', floorsRoutes);
+app.use('/api', dashboardRoutes);
+app.use('/api', sessionRoutes);
 
 // Start Server
 const startServer = async () => {
