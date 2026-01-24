@@ -105,4 +105,17 @@ export const configAPI = {
     deleteTable: (id) => api.delete(`/tables/${id}`),
 };
 
+// Session API methods
+export const sessionAPI = {
+    active: (posConfigId) => api.get('/sessions/active', { params: { pos_config_id: posConfigId } }),
+    open: (posConfigId) => api.post('/sessions/open', { pos_config_id: posConfigId }),
+    get: (id) => api.get(`/sessions/${id}`),
+};
+
+// Order API methods
+export const orderAPI = {
+    create: (data) => api.post('/orders', data),
+    get: (id) => api.get(`/orders/${id}`),
+};
+
 export default api;
