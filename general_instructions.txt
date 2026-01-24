@@ -1,0 +1,167 @@
+Phase 1: The MVP (10 Steps)
+
+Goal: Build the "Happy Path" (Login → Open Session → Table → Order → Kitchen → Pay).
+
+Step 1: Project Setup & Authentication Schema
+
+    Copy/Paste this: "I am building a Restaurant POS system called 'Odoo Cafe POS'. Please help me set up the backend project structure and Authentication.
+
+        Tech Stack: [Insert your stack, e.g., Spring Boot + React/Next.js].
+
+        Requirements: Implement User Authentication. Users can 'Signup' (create account) or 'Login' (access system).
+
+        Database Schema: Create a User entity with roles (Admin/Staff).
+
+        Output: Provide the necessary database schema (SQL or ORM) and the API endpoints for /auth/signup and /auth/login that return a JWT or session token."
+
+Step 2: Core Inventory & Floor Data
+
+    Copy/Paste this: "Now let's build the Configuration Area. Create the backend CRUD APIs and database entities for:
+
+        Products: Fields must include Name, Category, Price, Unit, Tax, and Description.
+
+        Floors & Tables: A Floor can have multiple Tables. Each Table has a Table Number, Seat Capacity, and Status (Active/Inactive).
+
+        Output: Give me the Controller and Service code to Create/Read/Update/Delete products and tables."
+
+Step 3: POS Session Management
+
+    Copy/Paste this: "Implement the 'POS Session' logic.
+
+        Logic: A user must open a 'Session' to start taking orders.
+
+        Entities: Create a POS_Session entity linking to the User and Terminal. It tracks start_time, end_time, opening_balance, and closing_balance.
+
+        API: Create an endpoint to 'Open Session' (which validates no other session is active for this user) and 'Get Current Session Details' (showing last closing amount)."
+
+Step 4: Frontend - Floor Plan UI
+
+    Copy/Paste this: "Let's move to the Frontend. Build the 'Floor View' page.
+
+        UI: Fetch the list of Floors and Tables from the backend.
+
+        Visualization: Render tables as selectable cards or buttons (e.g., 'Table 3', 'Table 6').
+
+        Interaction: Clicking a table should navigate the user to an empty 'Order View' for that specific table.
+
+        Output: Provide the React/Frontend component code."
+
+Step 5: Order Interface (Cart Logic)
+
+    Copy/Paste this: "Build the 'Order Screen' UI and state management.
+
+        Layout: Left side shows a grid of Products (fetched from API). Right side is the 'Cart/Order Summary'.
+
+        Features: Clicking a product adds it to the cart. Allow users to adjust quantities (+/-) or remove items.
+
+        Totals: Calculate line totals and the grand total dynamically.
+
+        Output: Provide the component code for the Product Grid and Cart Order Summary."
+
+Step 6: Connecting Order to Backend
+
+    Copy/Paste this: "Connect the frontend Cart to the Backend.
+
+        Schema: Create an Order entity linked to Table and Session. Create OrderLine entities for the specific products.
+
+        API: Create a POST endpoint /orders that receives the cart data, table ID, and session ID to save the order as 'Draft'.
+
+        UI Action: Add a 'Confirm/Save' button on the Order Screen that triggers this API."
+
+Step 7: Kitchen Display System (MVP)
+
+    Copy/Paste this: "Implement the basic 'Kitchen Display' feature.
+
+        Requirement: Add a 'Send to Kitchen' button on the Order Screen.
+
+        Backend: When clicked, update the Order status to 'Sent'.
+
+        Kitchen UI: Create a separate page /kitchen that polls or uses websockets to display only orders with status 'Sent'. Show the Table Name, Order Number, and List of Items.
+
+        Output: The API update logic and the simple Kitchen View component."
+
+Step 8: Payment Methods Structure
+
+    Copy/Paste this: "Implement the 'Payment Screen' structure.
+
+        Backend: Create a PaymentMethod entity (Name, Type: Cash/Bank/UPI, Is_Active). Seed it with 3 methods: Cash, Digital, UPI.
+
+        Frontend: When clicking 'Pay' on an order, show a modal with the Total Amount and a list of enabled Payment Methods.
+
+        Cash Logic: If 'Cash' is selected, simply allow a 'Validate' button to mark the order as 'Paid'."
+
+Step 9: UPI QR Implementation
+
+    Copy/Paste this: "Implement the specific 'UPI QR' payment flow described in the requirements.
+
+        Configuration: The backend should store a UPI ID (e.g., '123@ybl').
+
+        Frontend Logic: If 'UPI' is selected, generate a QR code dynamically.
+
+        QR Data: The QR string should follow the UPI format: upi://pay?pa=[UPI_ID]&am=[Amount]&tn=Order[ID].
+
+        UI: Show the QR code with a 'Confirmed' button. Clicking 'Confirmed' marks the order as Paid and returns the user to the Floor View."
+
+Step 10: Closing & Receipts
+
+    Copy/Paste this: "Finalize the MVP loop.
+
+        Close Register: Add a button in the top navigation to 'Close Register'.
+
+        Backend: This endpoint should update the POS_Session with an end_time and closing_balance (sum of all paid orders in this session).
+
+        Output: Generate a simple Session Summary JSON showing Total Cash Sales and Total Digital Sales."
+
+Phase 2: Adding All Features (5 Steps)
+
+Goal: Add the complex "Odoo" features (Variants, Reporting, Advanced KDS).
+
+Step 11: Product Variants & Attributes
+
+    Copy/Paste this: "Upgrade the Product schema to support Variants as per the requirements.
+
+        Schema: Add ProductAttribute (e.g., 'Pack') and AttributeValue (e.g., '6 items', '12 items').
+
+        Logic: Allow specific values to have extra_price.
+
+        UI: When a user selects a product with variants, open a popup to select the attribute before adding it to the cart."
+
+Step 12: Advanced Kitchen Workflow
+
+    Copy/Paste this: "Enhance the Kitchen Display System to support 'Stages'.
+
+        Stages: Define stages: 'To Cook' (New), 'Preparing' (In Progress), 'Completed' (Ready).
+
+        Interaction: Allow kitchen staff to click an order card to move it to the next stage.
+
+        Granularity: Allow clicking individual items inside a ticket to strike them through (mark as prepared)."
+
+Step 13: Customer Display Screen
+
+    Copy/Paste this: "Build the 'Customer Display' screen.
+
+        Requirement: A separate view intended for a secondary monitor facing the customer.
+
+        Data Sync: It should reflect the current active order of the POS terminal in real-time.
+
+        UI: Show the list of items being scanned, the total price, and a 'Payment Status' (Paid/Unpaid) overlay once checkout begins."
+
+Step 14: Self-Ordering (Token System)
+
+    Copy/Paste this: "Implement the 'Self-Ordering' module.
+
+        Token Generation: specific tables can generate a URL/Token for mobile ordering.
+
+        Guest UI: Create a mobile-friendly view accessible via that token that allows adding items and placing an order.
+
+        Integration: Orders placed here should auto-create an Order Number and appear immediately on the Kitchen Display."
+
+Step 15: Advanced Reporting Dashboard
+
+    Copy/Paste this: "Build the Reporting Dashboard with filters.
+
+        Visuals: Create charts/tables showing Sales by Session, Sales by Product, and Sales by Staff.
+
+        Filters: Add a filter bar to query data by 'Period' (Date Range), 'Session ID', or 'Responsible User'.
+
+        Export: Add functionality to export the filtered data tables to CSV or PDF."
