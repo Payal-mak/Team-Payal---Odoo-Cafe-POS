@@ -1,4 +1,5 @@
 import express from 'express';
+import crypto from 'crypto';
 import { pool } from '../config/database.js';
 import { authenticateToken } from '../middleware/authMiddleware.js';
 import { requireAdmin } from '../middleware/roleMiddleware.js';
@@ -200,6 +201,72 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
         res.status(500).json({
             status: 'error',
             message: 'Failed to delete table'
+        });
+    }
+});
+
+/**
+ * POST /api/tables/:id/token
+ * Generate self-order token (Admin only)
+ */
+router.post('/:id/token', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const token = crypto.randomBytes(16).toString('hex');
+
+        const [result] = await pool.query(
+            'UPDATE tables SET self_order_token = ? WHERE id = ?',
+            [token, id]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ status: 'error', message: 'Table not found' });
+        }
+
+        res.json({
+            status: 'success',
+            message: 'Token generated successfully',
+            data: { token }
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to generate token',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+/**
+ * GET /api/tables/public/by-token/:token
+ * Get table info by token (Public)
+ */
+router.get('/public/by-token/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        const [tables] = await pool.query(
+            `SELECT t.id, t.number, t.self_order_token, f.name as floor_name 
+             FROM tables t 
+             JOIN floors f ON t.floor_id = f.id 
+             WHERE t.self_order_token = ?`,
+            [token]
+        );
+
+        if (tables.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Invalid or expired token'
+            });
+        }
+
+        res.json({
+            status: 'success',
+            data: { table: tables[0] }
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to verify token'
         });
     }
 });

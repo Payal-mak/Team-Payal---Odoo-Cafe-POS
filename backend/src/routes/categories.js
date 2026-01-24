@@ -9,7 +9,7 @@ const router = express.Router();
  * GET /api/categories
  * List all categories
  */
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const [categories] = await pool.query(
             'SELECT * FROM categories ORDER BY sequence ASC, name ASC'

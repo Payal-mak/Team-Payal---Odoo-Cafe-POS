@@ -11,6 +11,7 @@ import Products from './pages/Products';
 import FloorPlan from './pages/FloorPlan';
 import POSFloorView from './pages/POSFloorView';
 import POSOrder from './pages/POSOrder';
+import SelfOrderMenu from './pages/SelfOrderMenu';
 import './index.css';
 
 // Home redirect component
@@ -118,6 +119,9 @@ function App() {
                             </ProtectedRoute>
                         }
                     />
+
+                    {/* Self Order Menu (Public) */}
+                    <Route path="/menu/:token" element={<SelfOrderMenu />} />
 
                     {/* Home Route - Redirect based on auth status and role */}
                     <Route path="/" element={<HomeRedirect />} />

@@ -9,7 +9,7 @@ const router = express.Router();
  * GET /api/products
  * List all products with category data
  */
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const query = `
       SELECT p.*, c.name as category_name, c.color as category_color 
@@ -36,7 +36,7 @@ router.get('/', authenticateToken, async (req, res) => {
  * GET /api/products/:id
  * Get product details with variants
  */
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
 
