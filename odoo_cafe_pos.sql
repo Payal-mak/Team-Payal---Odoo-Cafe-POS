@@ -1,7 +1,7 @@
 -- Create the database
-CREATE DATABASE IF NOT EXISTS odoo_cafe_pos_new;
+CREATE DATABASE IF NOT EXISTS odoo_cafe_pos;
 
-USE odoo_cafe_pos_new;
+USE odoo_cafe_pos;
 
 -- =====================================================================
 -- 1. Users Table
