@@ -89,4 +89,20 @@ export const inventoryAPI = {
     deleteProduct: (id) => api.delete(`/products/${id}`),
 };
 
+// Config API methods
+export const configAPI = {
+    // Floors
+    getFloors: () => api.get('/floors'),
+    createFloor: (data) => api.post('/floors', data),
+    updateFloor: (id, data) => api.put(`/floors/${id}`, data),
+    deleteFloor: (id) => api.delete(`/floors/${id}`),
+
+    // Tables
+    getTables: () => api.get('/tables'),
+    getTablesByFloor: (floorId) => api.get(`/tables/by-floor/${floorId}`),
+    createTable: (data) => api.post('/tables', data),
+    updateTable: (id, data) => api.put(`/tables/${id}`, data),
+    deleteTable: (id) => api.delete(`/tables/${id}`),
+};
+
 export default api;

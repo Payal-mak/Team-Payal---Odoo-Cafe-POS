@@ -6,6 +6,8 @@ import healthRoutes from './routes/health.js';
 import authRoutes from './routes/auth.js';
 import categoryRoutes from './routes/categories.js';
 import productRoutes from './routes/products.js';
+import floorRoutes from './routes/floors.js';
+import tableRoutes from './routes/tables.js';
 
 dotenv.config();
 
@@ -22,6 +24,8 @@ app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/floors', floorRoutes);
+app.use('/api/tables', tableRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -32,7 +36,9 @@ app.get('/', (req, res) => {
             health: '/api/health',
             auth: '/api/auth',
             categories: '/api/categories',
-            products: '/api/products'
+            products: '/api/products',
+            floors: '/api/floors',
+            tables: '/api/tables'
         }
     });
 });

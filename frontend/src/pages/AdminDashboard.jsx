@@ -92,6 +92,15 @@ const AdminDashboard = () => {
                             <h3 className="text-xl font-bold text-espresso-900 mb-2">Products</h3>
                             <p className="text-espresso-600">Manage products, prices, and variants</p>
                         </div>
+
+                        <div
+                            onClick={() => navigate('/admin/floor-plan')}
+                            className="bg-white p-6 rounded-lg shadow-md border border-cream-200 cursor-pointer hover:shadow-lg transition-shadow"
+                        >
+                            <div className="text-4xl mb-3">🪑</div>
+                            <h3 className="text-xl font-bold text-espresso-900 mb-2">Floor Plan</h3>
+                            <p className="text-espresso-600">Arrange tables and manage floors</p>
+                        </div>
                     </div>
 
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

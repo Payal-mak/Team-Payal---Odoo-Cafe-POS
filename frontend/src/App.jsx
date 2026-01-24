@@ -8,6 +8,7 @@ import KitchenDisplay from './pages/KitchenDisplay';
 import AdminDashboard from './pages/AdminDashboard';
 import Categories from './pages/Categories';
 import Products from './pages/Products';
+import FloorPlan from './pages/FloorPlan';
 import './index.css';
 
 // Home redirect component
@@ -88,6 +89,14 @@ function App() {
                         element={
                             <ProtectedRoute allowedRoles={['admin']}>
                                 <Products />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/admin/floor-plan"
+                        element={
+                            <ProtectedRoute allowedRoles={['admin']}>
+                                <FloorPlan />
                             </ProtectedRoute>
                         }
                     />
