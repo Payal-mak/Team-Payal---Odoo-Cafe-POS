@@ -118,4 +118,10 @@ export const orderAPI = {
     get: (id) => api.get(`/orders/${id}`),
 };
 
+// Kitchen API methods
+export const kitchenAPI = {
+    getActive: () => api.get('/orders/kitchen/active'),
+    updateStage: (id, stage) => api.put(`/orders/${id}/kitchen-stage`, { stage }),
+};
+
 export default api;

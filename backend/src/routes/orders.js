@@ -118,11 +118,77 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 });
 
+// ... (previous code)
+
+/**
+ * GET /api/orders/kitchen/active
+ * Get active kitchen orders
+ */
+router.get('/kitchen/active', authenticateToken, async (req, res) => {
+    try {
+        const [orders] = await pool.query(
+            `SELECT * FROM orders 
+             WHERE kitchen_stage != 'completed' 
+             ORDER BY created_at ASC`
+        );
+
+        // Fetch lines for each order
+        for (const order of orders) {
+            const [lines] = await pool.query(
+                `SELECT ol.*, p.name as product_name, v.value as variant_value
+                 FROM order_lines ol
+                 JOIN products p ON ol.product_id = p.id
+                 LEFT JOIN product_variants v ON ol.variant_id = v.id
+                 WHERE ol.order_id = ?`,
+                [order.id]
+            );
+            order.lines = lines;
+        }
+
+        res.json({
+            status: 'success',
+            data: { orders }
+        });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: 'Failed to fetch kitchen orders' });
+    }
+});
+
+/**
+ * PUT /api/orders/:id/kitchen-stage
+ * Update kitchen stage
+ */
+router.put('/:id/kitchen-stage', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { stage } = req.body; // 'to_cook', 'preparing', 'completed'
+
+        if (!['to_cook', 'preparing', 'completed'].includes(stage)) {
+            return res.status(400).json({ status: 'error', message: 'Invalid stage' });
+        }
+
+        await pool.query(
+            'UPDATE orders SET kitchen_stage = ? WHERE id = ?',
+            [stage, id]
+        );
+
+        // Notify via socket
+        if (req.io) {
+            req.io.emit('order_update', { id: parseInt(id), kitchen_stage: stage });
+        }
+
+        res.json({ status: 'success', message: 'Stage updated' });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: 'Failed to update stage' });
+    }
+});
+
 /**
  * GET /api/orders/:id
  * Get order details
  */
 router.get('/:id', authenticateToken, async (req, res) => {
+    // ... (rest of the file)
     try {
         const { id } = req.params;
 
