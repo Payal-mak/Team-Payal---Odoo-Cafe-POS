@@ -7,6 +7,7 @@ import productsRoutes from './routes/products.routes.js';
 import floorsRoutes from './routes/floors.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import sessionRoutes from './routes/session.routes.js';
+import ordersRoutes from './routes/orders.routes.js';
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.use('/api', productsRoutes);
 app.use('/api', floorsRoutes);
 app.use('/api', dashboardRoutes);
 app.use('/api', sessionRoutes);
+app.use('/api', ordersRoutes);
 
 // Start Server
 const startServer = async () => {

@@ -75,4 +75,14 @@ export const sessionAPI = {
     close: (id, data) => api.post(`/sessions/${id}/close`, data)
 };
 
+// ============ ORDERS ============
+export const orderAPI = {
+    create: (orderData) => api.post('/orders', orderData),
+    getAll: (params) => api.get('/orders', { params }),
+    getById: (id) => api.get(`/orders/${id}`),
+    getByTable: (tableId, sessionId) => api.get(`/orders/table/${tableId}`, { params: { session_id: sessionId } }),
+    updateStatus: (id, statusData) => api.put(`/orders/${id}/status`, statusData),
+    sendToKitchen: (id) => api.post(`/orders/${id}/send-to-kitchen`)
+};
+
 export default api;

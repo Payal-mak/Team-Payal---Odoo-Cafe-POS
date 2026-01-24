@@ -249,6 +249,39 @@
     color: #ef4444;
 }
 
+/* Order Success Message */
+.order-success {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 1rem;
+    margin: 0.5rem;
+    border-radius: 10px;
+}
+
+.order-success .success-icon {
+    font-size: 1.5rem;
+}
+
+.order-success div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.order-success strong {
+    color: #10b981;
+    font-size: 0.9375rem;
+}
+
+.order-success .order-number {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    font-family: monospace;
+}
+
 .cart-items {
     flex: 1;
     overflow-y: auto;

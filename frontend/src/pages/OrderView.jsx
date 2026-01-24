@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { tableAPI, sessionAPI, productAPI } from '../services/api';
+import { tableAPI, sessionAPI, productAPI, orderAPI } from '../services/api';
 import '../styles/order-view.css';
 
 const OrderView = () => {
@@ -18,6 +18,9 @@ const OrderView = () => {
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [cart, setCart] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [currentOrder, setCurrentOrder] = useState(null);
+    const [orderSuccess, setOrderSuccess] = useState(null);
 
     useEffect(() => {
         loadData();
@@ -26,19 +29,23 @@ const OrderView = () => {
     const loadData = async () => {
         try {
             // Load table if not in state
-            if (!location.state?.table) {
+            let tableData = location.state?.table;
+            if (!tableData) {
                 const tableRes = await tableAPI.getById(tableId);
-                setTable(tableRes.data.data);
+                tableData = tableRes.data.data;
+                setTable(tableData);
             }
 
             // Load session if not in state
-            if (!location.state?.session) {
+            let sessionData = location.state?.session;
+            if (!sessionData) {
                 const sessionRes = await sessionAPI.getCurrent(user?.id);
                 if (!sessionRes.data.data) {
                     navigate('/dashboard');
                     return;
                 }
-                setSession(sessionRes.data.data);
+                sessionData = sessionRes.data.data;
+                setSession(sessionData);
             }
 
             // Load products
@@ -72,6 +79,7 @@ const OrderView = () => {
             }
             return [...prevCart, { ...product, quantity: 1 }];
         });
+        setOrderSuccess(null); // Clear success message when cart changes
     };
 
     const updateQuantity = (productId, delta) => {
@@ -85,14 +93,17 @@ const OrderView = () => {
                 return item;
             }).filter(Boolean);
         });
+        setOrderSuccess(null);
     };
 
     const removeFromCart = (productId) => {
         setCart(prevCart => prevCart.filter(item => item.id !== productId));
+        setOrderSuccess(null);
     };
 
     const clearCart = () => {
         setCart([]);
+        setOrderSuccess(null);
     };
 
     const calculateSubtotal = () => {
@@ -105,6 +116,89 @@ const OrderView = () => {
 
     const calculateTotal = () => {
         return calculateSubtotal() + calculateTax();
+    };
+
+    const handleConfirmOrder = async () => {
+        if (cart.length === 0) return;
+
+        setSaving(true);
+        setOrderSuccess(null);
+
+        try {
+            const orderData = {
+                table_id: parseInt(tableId),
+                session_id: session?.id,
+                items: cart.map(item => ({
+                    id: item.id,
+                    price: parseFloat(item.price),
+                    quantity: item.quantity,
+                    tax_rate: item.tax_rate || 10
+                })),
+                notes: null
+            };
+
+            const response = await orderAPI.create(orderData);
+
+            if (response.data.success) {
+                setCurrentOrder(response.data.data);
+                setOrderSuccess({
+                    message: 'Order confirmed!',
+                    orderNumber: response.data.data.order_number
+                });
+                // Don't clear cart - user might want to add more items
+            }
+        } catch (error) {
+            console.error('Error creating order:', error);
+            alert(error.response?.data?.message || 'Failed to save order');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleSendToKitchen = async () => {
+        if (!currentOrder && cart.length === 0) return;
+
+        setSaving(true);
+
+        try {
+            let orderId = currentOrder?.id;
+
+            // If no current order, create one first
+            if (!orderId) {
+                const orderData = {
+                    table_id: parseInt(tableId),
+                    session_id: session?.id,
+                    items: cart.map(item => ({
+                        id: item.id,
+                        price: parseFloat(item.price),
+                        quantity: item.quantity,
+                        tax_rate: item.tax_rate || 10
+                    })),
+                    notes: null
+                };
+
+                const response = await orderAPI.create(orderData);
+                orderId = response.data.data.id;
+                setCurrentOrder(response.data.data);
+            }
+
+            // Send to kitchen
+            const kitchenResponse = await orderAPI.sendToKitchen(orderId);
+
+            if (kitchenResponse.data.success) {
+                setOrderSuccess({
+                    message: 'Order sent to kitchen!',
+                    orderNumber: kitchenResponse.data.data.order_number
+                });
+                setCart([]); // Clear cart after sending to kitchen
+                setCurrentOrder(kitchenResponse.data.data);
+            }
+        } catch (error) {
+            console.error('Error sending to kitchen:', error);
+            alert(error.response?.data?.message || 'Failed to send order to kitchen');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const filteredProducts = selectedCategory === 'all'
@@ -212,6 +306,17 @@ const OrderView = () => {
                         )}
                     </div>
 
+                    {/* Success Message */}
+                    {orderSuccess && (
+                        <div className="order-success">
+                            <span className="success-icon">✅</span>
+                            <div>
+                                <strong>{orderSuccess.message}</strong>
+                                <span className="order-number">{orderSuccess.orderNumber}</span>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="cart-items">
                         {cart.length === 0 ? (
                             <div className="empty-cart">
@@ -278,15 +383,17 @@ const OrderView = () => {
                         <div className="cart-actions">
                             <button
                                 className="btn-secondary"
-                                disabled={cart.length === 0}
+                                disabled={cart.length === 0 || saving}
+                                onClick={handleSendToKitchen}
                             >
-                                🍳 Send to Kitchen
+                                {saving ? '⏳ Sending...' : '🍳 Send to Kitchen'}
                             </button>
                             <button
                                 className="btn-primary"
-                                disabled={cart.length === 0}
+                                disabled={cart.length === 0 || saving}
+                                onClick={handleConfirmOrder}
                             >
-                                💳 Pay {cart.length > 0 ? formatCurrency(calculateTotal()) : ''}
+                                {saving ? '⏳ Saving...' : `💳 Pay ${cart.length > 0 ? formatCurrency(calculateTotal()) : ''}`}
                             </button>
                         </div>
                     </div>
