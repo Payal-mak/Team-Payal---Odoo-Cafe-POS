@@ -9,6 +9,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import Categories from './pages/Categories';
 import Products from './pages/Products';
 import FloorPlan from './pages/FloorPlan';
+import POSFloorView from './pages/POSFloorView';
+import POSOrder from './pages/POSOrder';
 import './index.css';
 
 // Home redirect component
@@ -57,6 +59,22 @@ function App() {
                         element={
                             <ProtectedRoute allowedRoles={['pos_user', 'admin']}>
                                 <POSDashboard />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/pos/floors"
+                        element={
+                            <ProtectedRoute allowedRoles={['pos_user', 'admin']}>
+                                <POSFloorView />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/pos/order/:tableId"
+                        element={
+                            <ProtectedRoute allowedRoles={['pos_user', 'admin']}>
+                                <POSOrder />
                             </ProtectedRoute>
                         }
                     />
