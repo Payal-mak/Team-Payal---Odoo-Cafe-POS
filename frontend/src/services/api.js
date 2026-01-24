@@ -85,4 +85,10 @@ export const orderAPI = {
     sendToKitchen: (id) => api.post(`/orders/${id}/send-to-kitchen`)
 };
 
+// ============ PAYMENT ============
+export const paymentAPI = {
+    getPaymentMethods: (posConfigId) => api.get(`/payment-methods/${posConfigId}`),
+    processPayment: (orderId, paymentData) => api.post(`/orders/${orderId}/pay`, paymentData)
+};
+
 export default api;

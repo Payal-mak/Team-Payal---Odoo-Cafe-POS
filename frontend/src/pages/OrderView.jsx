@@ -3,6 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { tableAPI, sessionAPI, productAPI, orderAPI } from '../services/api';
 import Header from '../components/Header';
+import PaymentModal from '../components/PaymentModal';
 import '../styles/order-view.css';
 
 const OrderView = () => {
@@ -22,6 +23,7 @@ const OrderView = () => {
     const [saving, setSaving] = useState(false);
     const [currentOrder, setCurrentOrder] = useState(null);
     const [orderSuccess, setOrderSuccess] = useState(null);
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
     useEffect(() => {
         loadData();
@@ -385,15 +387,36 @@ const OrderView = () => {
                             </button>
                             <button
                                 className="btn-primary"
-                                disabled={cart.length === 0 || saving}
-                                onClick={handleConfirmOrder}
+                                disabled={!currentOrder || saving}
+                                onClick={() => setIsPaymentModalOpen(true)}
                             >
-                                {saving ? '⏳ Saving...' : `💳 Pay ${cart.length > 0 ? formatCurrency(calculateTotal()) : ''}`}
+                                💳 Pay {currentOrder ? formatCurrency(currentOrder.total_amount) : ''}
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Payment Modal */}
+            {currentOrder && (
+                <PaymentModal 
+                    order={currentOrder}
+                    isOpen={isPaymentModalOpen}
+                    onClose={() => setIsPaymentModalOpen(false)}
+                    onPaymentSuccess={(paidOrder) => {
+                        setCurrentOrder(paidOrder);
+                        setCart([]);
+                        setOrderSuccess({
+                            message: 'Payment successful!',
+                            orderNumber: paidOrder.order_number
+                        });
+                        // Navigate back to POS after a moment
+                        setTimeout(() => {
+                            navigate('/pos');
+                        }, 2000);
+                    }}
+                />
+            )}
         </div>
     );
 };
