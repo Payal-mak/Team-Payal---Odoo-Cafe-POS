@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { productAPI, categoryAPI } from '../services/api';
-import { useNavigate } from 'react-router-dom';
+import Header from '../components/Header';
 import '../styles/products.css';
 
 const Products = () => {
-    const navigate = useNavigate();
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -130,12 +129,11 @@ const Products = () => {
 
     return (
         <div className="products-container">
-            <header className="products-header">
-                <h1>📦 Product Management</h1>
-                <button onClick={() => navigate('/dashboard')} className="back-button">
-                    ← Back to Dashboard
-                </button>
-            </header>
+            <Header 
+                title="📦 Product Management"
+                showBack={true}
+                backTo="/dashboard"
+            />
 
             <div className="products-actions">
                 <div className="filters">

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { tableAPI, sessionAPI, productAPI, orderAPI } from '../services/api';
+import Header from '../components/Header';
 import '../styles/order-view.css';
 
 const OrderView = () => {
@@ -219,23 +220,17 @@ const OrderView = () => {
 
     return (
         <div className="order-container">
-            {/* Order Header */}
-            <header className="order-header">
-                <div className="order-header-left">
-                    <button className="back-btn" onClick={handleBackToTables}>
-                        ← Tables
-                    </button>
-                    <div className="order-info">
-                        <h1>Table {table?.number}</h1>
-                        <span className="floor-name">{floor?.name || table?.floor_name}</span>
-                    </div>
-                </div>
-                <div className="order-header-right">
-                    <span className="session-badge">
-                        🟢 {session?.pos_name}
-                    </span>
-                </div>
-            </header>
+            <Header 
+                title={`Table ${table?.number}`}
+                subtitle={floor?.name || table?.floor_name}
+                showBack={true}
+                backTo="/pos"
+                backLabel="← Tables"
+            >
+                <span className="session-badge">
+                    🟢 {session?.pos_name}
+                </span>
+            </Header>
 
             <div className="order-main">
                 {/* Products Section */}

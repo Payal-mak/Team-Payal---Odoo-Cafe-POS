@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { floorAPI, tableAPI, sessionAPI } from '../services/api';
+import Header from '../components/Header';
 import '../styles/pos-terminal.css';
 
 const POSTerminal = () => {
@@ -90,23 +91,17 @@ const POSTerminal = () => {
 
     return (
         <div className="pos-container">
-            {/* POS Header */}
-            <header className="pos-header">
-                <div className="pos-header-left">
-                    <button className="back-btn" onClick={handleBackToDashboard}>
-                        ← Back
-                    </button>
-                    <h1>🍽️ POS Terminal</h1>
-                </div>
-                <div className="pos-header-center">
-                    <span className="session-badge">
-                        🟢 {currentSession?.pos_name} | Started: {formatTime(currentSession?.open_date)}
-                    </span>
-                </div>
-                <div className="pos-header-right">
-                    <span className="user-badge">👤 {user?.username}</span>
-                </div>
-            </header>
+            <Header 
+                title="🍽️ POS Terminal"
+                showBack={true}
+                backTo="/dashboard"
+                backLabel="← Back"
+            >
+                <span className="session-badge">
+                    🟢 {currentSession?.pos_name} | Started: {formatTime(currentSession?.open_date)}
+                </span>
+                <span className="user-badge">👤 {user?.username}</span>
+            </Header>
 
             <div className="pos-main">
                 {/* Floor Tabs */}

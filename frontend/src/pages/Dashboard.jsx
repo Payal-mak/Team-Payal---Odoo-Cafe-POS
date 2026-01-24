@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { dashboardAPI, sessionAPI } from '../services/api';
-import ThemeToggle from '../components/ThemeToggle';
+import Header from '../components/Header';
 import '../styles/dashboard.css';
 
 const Dashboard = () => {
@@ -96,18 +96,11 @@ const Dashboard = () => {
 
     return (
         <div className="dashboard-container">
-            <header className="dashboard-header">
-                <div className="header-left">
-                    <h1>🍽️ Odoo Cafe POS</h1>
-                    <p className="header-subtitle">Restaurant Management System</p>
-                </div>
-                <div className="header-actions">
-                    <ThemeToggle />
-                    <button onClick={handleLogout} className="logout-button">
-                        Logout
-                    </button>
-                </div>
-            </header>
+            <Header 
+                title="🍽️ Odoo Cafe POS"
+                subtitle="Restaurant Management System"
+                showLogout={true}
+            />
 
             <main className="dashboard-main">
                 {/* Welcome Section */}

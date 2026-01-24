@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { floorAPI, tableAPI } from '../services/api';
-import { useNavigate } from 'react-router-dom';
+import Header from '../components/Header';
 import '../styles/floor-tables.css';
 
 const FloorTables = () => {
-    const navigate = useNavigate();
     const [floors, setFloors] = useState([]);
     const [tables, setTables] = useState([]);
     const [selectedFloor, setSelectedFloor] = useState(null);
@@ -164,12 +163,11 @@ const FloorTables = () => {
 
     return (
         <div className="floor-tables-container">
-            <header className="floor-tables-header">
-                <h1>🏢 Floor & Table Management</h1>
-                <button onClick={() => navigate('/dashboard')} className="back-button">
-                    ← Back to Dashboard
-                </button>
-            </header>
+            <Header 
+                title="🏢 Floor & Table Management"
+                showBack={true}
+                backTo="/dashboard"
+            />
 
             <div className="floor-tables-layout">
                 {/* Left Panel - Floors */}
