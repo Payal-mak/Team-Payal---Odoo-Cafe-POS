@@ -53,6 +53,7 @@ export const floorAPI = {
 export const tableAPI = {
     getAll: () => api.get('/tables'),
     getByFloor: (floorId) => api.get(`/tables/floor/${floorId}`),
+    getById: (id) => api.get(`/tables/${id}`),
     create: (tableData) => api.post('/tables', tableData),
     update: (id, tableData) => api.put(`/tables/${id}`, tableData),
     delete: (id) => api.delete(`/tables/${id}`)

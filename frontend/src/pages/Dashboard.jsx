@@ -203,58 +203,86 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* Quick Actions */}
+                {/* Quick Actions - Role Based */}
                 <div className="dashboard-section">
                     <h2 className="section-title">Quick Actions</h2>
                     <div className="action-grid">
-                        <div
-                            className="action-card"
-                            onClick={() => navigate('/products')}
-                        >
-                            <div className="action-icon">📦</div>
-                            <h3>Manage Products</h3>
-                            <p>Add, edit, or remove menu items</p>
-                        </div>
+                        {/* Kitchen User sees Kitchen Display first */}
+                        {user?.role === 'kitchen_user' && (
+                            <div className="action-card featured disabled">
+                                <div className="action-icon">🖥️</div>
+                                <h3>Kitchen Display</h3>
+                                <p>View and manage kitchen orders</p>
+                                <span className="coming-soon">Coming Soon</span>
+                            </div>
+                        )}
 
-                        <div
-                            className="action-card"
-                            onClick={() => navigate('/floors-tables')}
-                        >
-                            <div className="action-icon">🏢</div>
-                            <h3>Manage Tables</h3>
-                            <p>Configure floors and table layouts</p>
-                        </div>
+                        {/* Admin and POS User can manage products */}
+                        {(user?.role === 'admin' || user?.role === 'pos_user') && (
+                            <div
+                                className="action-card"
+                                onClick={() => navigate('/products')}
+                            >
+                                <div className="action-icon">📦</div>
+                                <h3>Manage Products</h3>
+                                <p>Add, edit, or remove menu items</p>
+                            </div>
+                        )}
 
-                        <div
-                            className={`action-card ${!currentSession ? 'disabled' : ''}`}
-                            onClick={() => currentSession && navigate('/pos')}
-                        >
-                            <div className="action-icon">🍽️</div>
-                            <h3>New Order</h3>
-                            <p>Create a new table order</p>
-                            {!currentSession && <span className="coming-soon">Requires Session</span>}
-                        </div>
+                        {/* Admin can manage tables */}
+                        {user?.role === 'admin' && (
+                            <div
+                                className="action-card"
+                                onClick={() => navigate('/floors-tables')}
+                            >
+                                <div className="action-icon">🏢</div>
+                                <h3>Manage Tables</h3>
+                                <p>Configure floors and table layouts</p>
+                            </div>
+                        )}
 
-                        <div className="action-card disabled">
-                            <div className="action-icon">📊</div>
-                            <h3>View Reports</h3>
-                            <p>Sales and analytics dashboards</p>
-                            <span className="coming-soon">Coming Soon</span>
-                        </div>
+                        {/* POS User and Admin can create orders */}
+                        {(user?.role === 'admin' || user?.role === 'pos_user') && (
+                            <div
+                                className={`action-card ${!currentSession ? 'disabled' : ''}`}
+                                onClick={() => currentSession && navigate('/pos')}
+                            >
+                                <div className="action-icon">🍽️</div>
+                                <h3>New Order</h3>
+                                <p>Create a new table order</p>
+                                {!currentSession && <span className="coming-soon">Requires Session</span>}
+                            </div>
+                        )}
 
-                        <div className="action-card disabled">
-                            <div className="action-icon">🖥️</div>
-                            <h3>Kitchen Display</h3>
-                            <p>View and manage kitchen orders</p>
-                            <span className="coming-soon">Coming Soon</span>
-                        </div>
+                        {/* Admin only - Reports */}
+                        {user?.role === 'admin' && (
+                            <div className="action-card disabled">
+                                <div className="action-icon">📊</div>
+                                <h3>View Reports</h3>
+                                <p>Sales and analytics dashboards</p>
+                                <span className="coming-soon">Coming Soon</span>
+                            </div>
+                        )}
 
-                        <div className="action-card disabled">
-                            <div className="action-icon">⚙️</div>
-                            <h3>Settings</h3>
-                            <p>Configure POS and payment methods</p>
-                            <span className="coming-soon">Coming Soon</span>
-                        </div>
+                        {/* Non-kitchen users can view Kitchen Display */}
+                        {user?.role !== 'kitchen_user' && (
+                            <div className="action-card disabled">
+                                <div className="action-icon">🖥️</div>
+                                <h3>Kitchen Display</h3>
+                                <p>View and manage kitchen orders</p>
+                                <span className="coming-soon">Coming Soon</span>
+                            </div>
+                        )}
+
+                        {/* Settings - Admin only */}
+                        {user?.role === 'admin' && (
+                            <div className="action-card disabled">
+                                <div className="action-icon">⚙️</div>
+                                <h3>Settings</h3>
+                                <p>Configure POS and payment methods</p>
+                                <span className="coming-soon">Coming Soon</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </main>

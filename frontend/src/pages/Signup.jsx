@@ -102,6 +102,26 @@ const Signup = () => {
                         </div>
                     </div>
 
+                    <div className="form-group">
+                        <label htmlFor="role">Role</label>
+                        <select
+                            id="role"
+                            name="role"
+                            value={formData.role}
+                            onChange={handleChange}
+                            className="role-select"
+                        >
+                            <option value="pos_user">POS User (Cashier)</option>
+                            <option value="kitchen_user">Kitchen User</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                        <span className="role-hint">
+                            {formData.role === 'pos_user' && '• Take orders, process payments'}
+                            {formData.role === 'kitchen_user' && '• View and manage kitchen orders'}
+                            {formData.role === 'admin' && '• Full access to all features'}
+                        </span>
+                    </div>
+
                     {error && <div className="error-message">{error}</div>}
 
                     <button type="submit" className="auth-button" disabled={loading}>

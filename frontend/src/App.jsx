@@ -6,6 +6,8 @@ import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import FloorTables from './pages/FloorTables';
+import POSTerminal from './pages/POSTerminal';
+import OrderView from './pages/OrderView';
 import './styles/theme.css';
 
 // Protected Route Component
@@ -95,6 +97,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <FloorTables />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pos"
+              element={
+                <ProtectedRoute>
+                  <POSTerminal />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pos/order/:tableId"
+              element={
+                <ProtectedRoute>
+                  <OrderView />
                 </ProtectedRoute>
               }
             />

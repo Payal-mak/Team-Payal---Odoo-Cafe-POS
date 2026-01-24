@@ -7,6 +7,7 @@ import {
     deleteFloor,
     getAllTables,
     getTablesByFloor,
+    getTableById,
     createTable,
     updateTable,
     deleteTable
@@ -24,6 +25,7 @@ router.delete('/floors/:id', deleteFloor);
 // Table routes
 router.get('/tables', getAllTables);
 router.get('/tables/floor/:floorId', getTablesByFloor);
+router.get('/tables/:id', getTableById);
 router.post('/tables', createTable);
 router.put('/tables/:id', updateTable);
 router.delete('/tables/:id', deleteTable);

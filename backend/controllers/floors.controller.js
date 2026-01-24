@@ -218,6 +218,40 @@ export const getTablesByFloor = async (req, res) => {
     }
 };
 
+// Get single table by ID
+export const getTableById = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const tables = await query(`
+            SELECT 
+                t.*,
+                f.name as floor_name
+            FROM \`tables\` t
+            LEFT JOIN floors f ON t.floor_id = f.id
+            WHERE t.id = ?
+        `, [id]);
+
+        if (tables.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Table not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: tables[0]
+        });
+    } catch (error) {
+        console.error('Get table by ID error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch table'
+        });
+    }
+};
+
 // Create new table
 export const createTable = async (req, res) => {
     try {
