@@ -125,4 +125,9 @@ export const kitchenAPI = {
     updateStage: (id, stage) => api.put(`/orders/${id}/kitchen-stage`, { stage }),
 };
 
+// Report API methods
+export const reportAPI = {
+    getDashboard: () => api.get('/reports/dashboard'),
+};
+
 export default api;

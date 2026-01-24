@@ -12,6 +12,7 @@ import floorRoutes from './routes/floors.js';
 import tableRoutes from './routes/tables.js';
 import sessionRoutes from './routes/sessions.js';
 import orderRoutes from './routes/orders.js';
+import reportRoutes from './routes/reports.js';
 
 dotenv.config();
 
@@ -47,6 +48,7 @@ app.use('/api/floors', floorRoutes);
 app.use('/api/tables', tableRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
