@@ -184,6 +184,62 @@ router.put('/:id/kitchen-stage', authenticateToken, async (req, res) => {
 });
 
 /**
+ * POST /api/orders/:id/pay
+ * Process payment for an order
+ */
+router.post('/:id/pay', authenticateToken, async (req, res) => {
+    let connection;
+    try {
+        const { id } = req.params;
+        const { payment_method, amount } = req.body; // e.g., 'cash', 'card', 'upi'
+
+        if (!payment_method) {
+            return res.status(400).json({ status: 'error', message: 'Payment method required' });
+        }
+
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        // 1. Update Order Status
+        await connection.query(
+            `UPDATE orders 
+             SET status = 'paid', 
+                 payment_status = 'paid', 
+                 payment_method = ?,
+                 kitchen_stage = CASE WHEN kitchen_stage = 'to_cook' THEN 'preparing' ELSE kitchen_stage END 
+             WHERE id = ?`,
+            [payment_method, id]
+        );
+        // Note: Logic to auto-advance kitchen stage to 'preparing' or 'completed' upon payment? 
+        // For Cafe, usually allow kitchen to manage stage independently. 
+        // But maybe 'draft' -> 'paid' implies 'confirmed' so kitchen sees it (if they filter by status).
+        // My KDS fetches `kitchen_stage != completed`. So status 'paid' is fine.
+
+        await connection.commit();
+
+        const [updatedOrder] = await connection.query('SELECT * FROM orders WHERE id = ?', [id]);
+
+        // Emit 'order_paid' event
+        if (req.io) {
+            req.io.emit('order_update', { id: parseInt(id), status: 'paid', payment_status: 'paid' });
+        }
+
+        res.json({
+            status: 'success',
+            message: 'Payment successful',
+            data: { order: updatedOrder[0] }
+        });
+
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error('Payment error:', error);
+        res.status(500).json({ status: 'error', message: 'Payment failed' });
+    } finally {
+        if (connection) connection.release();
+    }
+});
+
+/**
  * GET /api/orders/:id
  * Get order details
  */

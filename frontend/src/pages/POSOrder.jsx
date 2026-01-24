@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { inventoryAPI, orderAPI, sessionAPI } from '../services/api';
+import PaymentModal from '../components/PaymentModal';
 
 const POSOrder = () => {
     const { tableId } = useParams();
@@ -17,6 +18,7 @@ const POSOrder = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
     const [selectedProductForVariant, setSelectedProductForVariant] = useState(null);
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
     // Cart State
     const [cart, setCart] = useState([]);
@@ -126,14 +128,23 @@ const POSOrder = () => {
 
         const { total, tax } = calculateTotals();
 
+        if (isDraft) {
+            processOrderCreation({ isDraft: true, paymentMethod: undefined, total, tax });
+        } else {
+            setIsPaymentModalOpen(true);
+        }
+    };
+
+    const processOrderCreation = async ({ isDraft, paymentMethod, total, tax, amountPaid }) => {
         const orderPayload = {
             session_id: activeSession.id,
-            table_id: tableId, // From URL
+            table_id: tableId,
             total_amount: total.toFixed(2),
             tax_amount: tax.toFixed(2),
-            payment_method: isDraft ? undefined : 'cash', // Draft defaults to NULL or logic defaults to 'cash'
+            payment_method: paymentMethod,
             status: isDraft ? 'draft' : 'paid',
-            kitchen_stage: 'to_cook',
+            kitchen_stage: isDraft ? 'to_cook' : 'to_cook',
+            payment_status: isDraft ? 'unpaid' : 'paid',
             items: cart.map(item => ({
                 product_id: item.product.id,
                 variant_id: item.variant?.id,
@@ -147,13 +158,23 @@ const POSOrder = () => {
 
         try {
             await orderAPI.create(orderPayload);
-            alert(isDraft ? 'Order sent to Kitchen!' : 'Order Paid Successfully!');
+            alert(isDraft ? 'Order sent to Kitchen!' : 'Payment Successful!');
+            setIsPaymentModalOpen(false);
             setCart([]);
-            navigate('/pos/floors'); // Go back to floor plan
+            navigate('/pos/floors');
         } catch (err) {
             console.error('Order failed', err);
             alert('Failed to place order.');
         }
+    };
+
+    const handlePaymentConfirm = (method, amount) => {
+        const { total, tax } = calculateTotals();
+        processOrderCreation({
+            isDraft: false,
+            paymentMethod: method,
+            total, tax, amountPaid: amount
+        });
     };
 
     // Filter products
@@ -375,6 +396,14 @@ const POSOrder = () => {
                         </div>
                     </div>
                 </div>
+            )}
+            {isPaymentModalOpen && (
+                <PaymentModal
+                    isOpen={isPaymentModalOpen}
+                    onClose={() => setIsPaymentModalOpen(false)}
+                    totalAmount={totals.total}
+                    onConfirm={handlePaymentConfirm}
+                />
             )}
         </div>
     );

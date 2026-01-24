@@ -115,6 +115,7 @@ export const sessionAPI = {
 // Order API methods
 export const orderAPI = {
     create: (data) => api.post('/orders', data),
+    pay: (id, data) => api.post(`/orders/${id}/pay`, data),
     get: (id) => api.get(`/orders/${id}`),
 };
 
