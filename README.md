@@ -1,5 +1,5 @@
 # Odoo Cafe POS
-
+## -Made by Payal & Kirti 
 A complete Point of Sale system for cafes and restaurants built with React, Node.js, and MySQL.
 
 ## 🎯 Project Overview
