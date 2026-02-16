@@ -2,6 +2,7 @@
 -- Odoo Cafe POS - Complete Database Schema
 -- Database: odoo_cafe_pos
 -- Description: Full-stack Restaurant Point of Sale System
+-- Compatible with phpMyAdmin and MySQL Workbench
 -- ============================================================
 
 -- Drop database if exists and create fresh
@@ -330,6 +331,7 @@ CREATE TABLE mobile_orders (
 -- ============================================================
 
 -- Insert default admin user (password: admin123)
+-- Note: These are placeholder hashed passwords. Replace with actual bcrypt hashes in production
 INSERT INTO
     users (
         email,
@@ -694,7 +696,15 @@ WHERE
     o.status != 'cancelled'
     AND o.payment_status != 'paid'
 GROUP BY
-    o.id;
+    o.id,
+    o.order_number,
+    o.order_date,
+    t.table_number,
+    f.name,
+    u.full_name,
+    o.total_amount,
+    o.status,
+    o.payment_status;
 
 -- View: Daily Sales Summary
 CREATE VIEW v_daily_sales AS
@@ -727,137 +737,12 @@ FROM
 WHERE
     o.status != 'cancelled'
 GROUP BY
-    p.id;
-
--- ============================================================
--- STORED PROCEDURES
--- ============================================================
-
--- Procedure: Create New Order
-DELIMITER / /
-
-CREATE PROCEDURE sp_create_order(
-    IN p_session_id INT,
-    IN p_table_id INT,
-    IN p_customer_id INT,
-    IN p_user_id INT,
-    OUT p_order_id INT,
-    OUT p_order_number VARCHAR(50)
-)
-BEGIN
-    DECLARE v_order_number VARCHAR(50);
-    
-    -- Generate order number
-    SET v_order_number = CONCAT('ORD-', DATE_FORMAT(NOW(), '%Y%m%d'), '-', LPAD(FLOOR(RAND() * 10000), 4, '0'));
-    
-    -- Insert order
-    INSERT INTO orders (order_number, session_id, table_id, customer_id, user_id, order_date)
-    VALUES (v_order_number, p_session_id, p_table_id, p_customer_id, p_user_id, NOW());
-    
-    SET p_order_id = LAST_INSERT_ID();
-    SET p_order_number = v_order_number;
-    
-    -- Update table status if table is assigned
-    IF p_table_id IS NOT NULL THEN
-        UPDATE tables SET status = 'occupied' WHERE id = p_table_id;
-    END IF;
-END //
-
-DELIMITER;
-
--- Procedure: Calculate Order Total
-DELIMITER / /
-
-CREATE PROCEDURE sp_calculate_order_total(IN p_order_id INT)
-BEGIN
-    DECLARE v_subtotal DECIMAL(10,2);
-    DECLARE v_tax_amount DECIMAL(10,2);
-    DECLARE v_total DECIMAL(10,2);
-    
-    -- Calculate totals from order items
-    SELECT 
-        COALESCE(SUM(subtotal), 0),
-        COALESCE(SUM(tax_amount), 0),
-        COALESCE(SUM(total), 0)
-    INTO v_subtotal, v_tax_amount, v_total
-    FROM order_items
-    WHERE order_id = p_order_id;
-    
-    -- Update order
-    UPDATE orders 
-    SET subtotal = v_subtotal,
-        tax_amount = v_tax_amount,
-        total_amount = v_total
-    WHERE id = p_order_id;
-END //
-
-DELIMITER;
-
--- ============================================================
--- TRIGGERS
--- ============================================================
-
--- Trigger: Update customer total sales after payment
-DELIMITER / /
-
-CREATE TRIGGER tr_update_customer_sales
-AFTER INSERT ON payments
-FOR EACH ROW
-BEGIN
-    DECLARE v_customer_id INT;
-    
-    SELECT customer_id INTO v_customer_id
-    FROM orders
-    WHERE id = NEW.order_id;
-    
-    IF v_customer_id IS NOT NULL AND NEW.status = 'completed' THEN
-        UPDATE customers
-        SET total_sales = total_sales + NEW.amount
-        WHERE id = v_customer_id;
-    END IF;
-END //
-
-DELIMITER;
-
--- Trigger: Update order payment status
-DELIMITER / /
-
-CREATE TRIGGER tr_update_order_payment_status
-AFTER INSERT ON payments
-FOR EACH ROW
-BEGIN
-    DECLARE v_total_amount DECIMAL(10,2);
-    DECLARE v_paid_amount DECIMAL(10,2);
-    
-    SELECT total_amount INTO v_total_amount
-    FROM orders
-    WHERE id = NEW.order_id;
-    
-    SELECT COALESCE(SUM(amount), 0) INTO v_paid_amount
-    FROM payments
-    WHERE order_id = NEW.order_id AND status = 'completed';
-    
-    IF v_paid_amount >= v_total_amount THEN
-        UPDATE orders SET payment_status = 'paid', status = 'paid' WHERE id = NEW.order_id;
-    ELSEIF v_paid_amount > 0 THEN
-        UPDATE orders SET payment_status = 'partial' WHERE id = NEW.order_id;
-    END IF;
-END //
-
-DELIMITER;
-
--- ============================================================
--- INDEXES FOR PERFORMANCE OPTIMIZATION
--- (Already added inline with table definitions)
--- ============================================================
+    p.id,
+    p.name,
+    c.name;
 
 -- ============================================================
 -- DATABASE SETUP COMPLETE
 -- ============================================================
 
 SELECT 'Database schema created successfully!' AS Status;
-
-SELECT COUNT(*) AS total_tables
-FROM information_schema.tables
-WHERE
-    table_schema = 'odoo_cafe_pos';
