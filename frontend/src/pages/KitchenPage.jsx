@@ -24,13 +24,14 @@ const KitchenPage = () => {
     const itemsPerPage = 6;
 
     // Fetch kitchen orders
-    const { data: ordersData, isLoading } = useQuery({
+    const { data: ordersData, isLoading, refetch } = useQuery({
         queryKey: ['kitchen-orders', selectedStage],
         queryFn: async () => {
             const response = await api.get(`/kitchen/orders?stage=${selectedStage}`);
             return response.data.data;
         },
-        refetchInterval: 5000, // Refresh every 5 seconds
+        refetchInterval: 3000,
+        refetchIntervalInBackground: true
     });
 
     // Fetch stage counts
@@ -54,11 +55,12 @@ const KitchenPage = () => {
 
     // Update item status mutation
     const updateItemMutation = useMutation({
-        mutationFn: async ({ itemId, status }) => {
-            const response = await api.put(`/kitchen/items/${itemId}`, { status });
+        mutationFn: async ({ itemId, prepared }) => {
+            const response = await api.put(`/kitchen/items/${itemId}/status`, { status: prepared ? 'ready' : 'pending' });
             return response.data;
         },
-        onSuccess: () => {
+        onSuccess: async () => {
+            await refetch();
             queryClient.invalidateQueries(['kitchen-orders']);
             queryClient.invalidateQueries(['kitchen-stats']);
         }
@@ -67,19 +69,20 @@ const KitchenPage = () => {
     // Update order stage mutation
     const updateOrderMutation = useMutation({
         mutationFn: async ({ orderId, stage }) => {
-            const response = await api.put(`/kitchen/orders/${orderId}`, { stage });
+            const response = await api.put(`/kitchen/orders/${orderId}/status`, { status: stage });
             return response.data;
         },
-        onSuccess: () => {
+        onSuccess: async () => {
             toast.success('Order moved to next stage');
+            await refetch();
             queryClient.invalidateQueries(['kitchen-orders']);
             queryClient.invalidateQueries(['kitchen-stats']);
         }
     });
 
-    const handleItemClick = (item) => {
-        const newStatus = item.status === 'pending' ? 'preparing' : 'ready';
-        updateItemMutation.mutate({ itemId: item.id, status: newStatus });
+    const handleItemClick = (item, e) => {
+        if (e) e.stopPropagation();
+        updateItemMutation.mutate({ itemId: item.id, prepared: true });
     };
 
     const handleMoveToNextStage = (order) => {
@@ -302,7 +305,7 @@ const OrderTicket = ({ order, stage, onItemClick, onMoveNext }) => {
                     <div
                         key={index}
                         className={`ticket-item ${item.status === 'ready' ? 'completed' : ''}`}
-                        onClick={() => onItemClick(item)}
+                        onClick={(e) => onItemClick(item, e)}
                     >
                         <div className="item-quantity">{item.quantity}x</div>
                         <div className="item-name">{item.product_name}</div>
