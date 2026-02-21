@@ -13,7 +13,7 @@ import {
 import QRCode from 'qrcode.react';
 import './PaymentModal.css';
 
-const PaymentModal = ({ total, cart, customer, notes, onClose, onSuccess }) => {
+const PaymentModal = ({ total, cart, customer, notes, onClose, onSuccess, sessionId, tableId }) => {
     const [paymentMethod, setPaymentMethod] = useState('cash');
     const [cashReceived, setCashReceived] = useState('');
     const [showReceipt, setShowReceipt] = useState(false);
@@ -26,13 +26,15 @@ const PaymentModal = ({ total, cart, customer, notes, onClose, onSuccess }) => {
         mutationFn: async (paymentData) => {
             // First create the order
             const orderResponse = await api.post('/orders', {
+                session_id: sessionId,
+                table_id: tableId || null,
                 customer_id: customer?.id || null,
-                order_type: 'dine_in',
+                order_type: tableId ? 'dine_in' : 'takeaway',
                 notes: notes,
                 items: cart.map(item => ({
                     product_id: item.product_id,
-                    quantity: item.quantity,
-                    price: item.price
+                    quantity: Number(item.quantity) || 1,
+                    unit_price: parseFloat(item.price) || 0
                 }))
             });
 
