@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import Layout from '../components/layout/Layout';
 import api from '../services/api';
 import {
     Calendar,
@@ -123,7 +122,6 @@ const ReportsPage = () => {
     }
 
     return (
-        <Layout>
             <div className="reports-page">
                 <div className="page-header">
                     <div>
@@ -425,7 +423,6 @@ const ReportsPage = () => {
                     </div>
                 )}
             </div>
-        </Layout>
     );
 };
 

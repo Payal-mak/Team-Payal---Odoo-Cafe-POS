@@ -74,19 +74,11 @@ const FloorPage = () => {
         }
     };
 
-    const handleTableClick = async (table) => {
+    const handleTableClick = (table) => {
         if (table.status === 'available') {
-            try {
-                await api.put(`/tables/${table.id}`, { status: 'occupied' });
-                sessionStorage.setItem('selectedTable', JSON.stringify({ id: table.id, name: table.name, capacity: table.capacity }));
-                queryClient.invalidateQueries(['tables']);
-                window.location.href = '/register';
-                toast.success(`Opening POS for ${table.name}`);
-            } catch (error) {
-                toast.error('Failed to select table');
-            }
-        } else {
-            toast.info(`${table.name} is currently ${table.status}`);
+            // Navigate to POS register with this table
+            toast.info('Opening POS for ' + table.name);
+            // TODO: Navigate to /register with table ID
         }
     };
 
@@ -472,3 +464,4 @@ const TableModal = ({ table, floorId, onClose, onSuccess }) => {
 };
 
 export default FloorPage;
+

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import Layout from '../components/layout/Layout';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import {
@@ -57,7 +56,6 @@ const CustomersPage = () => {
     };
 
     return (
-        <Layout>
             <div className="customers-page">
                 <div className="page-header">
                     <div>
@@ -202,7 +200,6 @@ const CustomersPage = () => {
                     />
                 )}
             </div>
-        </Layout>
     );
 };
 

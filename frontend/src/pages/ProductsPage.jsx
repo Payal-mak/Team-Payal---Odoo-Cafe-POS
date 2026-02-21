@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import Layout from '../components/layout/Layout';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import {
@@ -11,8 +10,25 @@ import {
     Package,
     X,
     Upload,
-    Tag
+    Tag,
+    GripVertical
 } from 'lucide-react';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import './ProductsPage.css';
 
 const ProductsPage = () => {
@@ -86,171 +102,169 @@ const ProductsPage = () => {
     };
 
     return (
-        <Layout>
-            <div className="products-page">
-                <div className="page-header">
-                    <div>
-                        <h1>Product Management</h1>
-                        <p>Manage your menu items and categories</p>
-                    </div>
-                    <div className="header-actions">
-                        <button
-                            className="btn btn-secondary"
-                            onClick={() => {
-                                setEditingCategory(null);
-                                setShowCategoryModal(true);
-                            }}
-                        >
-                            <Tag size={18} />
-                            Manage Categories
-                        </button>
-                        <button
-                            className="btn btn-primary"
-                            onClick={() => {
-                                setEditingProduct(null);
-                                setActiveTab('general');
-                                setShowProductModal(true);
-                            }}
-                        >
-                            <Plus size={18} />
-                            New Product
-                        </button>
-                    </div>
+        <div className="products-page">
+            <div className="page-header">
+                <div>
+                    <h1>Product Management</h1>
+                    <p>Manage your menu items and categories</p>
                 </div>
-
-                {/* Filters */}
-                <div className="filters-section">
-                    <div className="search-box">
-                        <Search size={20} />
-                        <input
-                            type="text"
-                            placeholder="Search products..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-
-                    <div className="category-filters">
-                        <button
-                            className={`filter-btn ${!selectedCategory ? 'active' : ''}`}
-                            onClick={() => setSelectedCategory('')}
-                        >
-                            All
-                        </button>
-                        {categoriesData?.map(category => (
-                            <button
-                                key={category.id}
-                                className={`filter-btn ${selectedCategory === category.id ? 'active' : ''}`}
-                                onClick={() => setSelectedCategory(category.id)}
-                                style={{
-                                    borderColor: selectedCategory === category.id ? category.color : 'transparent',
-                                    color: selectedCategory === category.id ? category.color : 'inherit'
-                                }}
-                            >
-                                {category.name}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Products Grid */}
-                {productsLoading ? (
-                    <div className="loading-container">
-                        <div className="spinner-large"></div>
-                        <p>Loading products...</p>
-                    </div>
-                ) : filteredProducts && filteredProducts.length > 0 ? (
-                    <div className="products-grid">
-                        {filteredProducts.map(product => (
-                            <div key={product.id} className="product-card">
-                                <div className="product-image">
-                                    {product.image_url ? (
-                                        <img src={product.image_url} alt={product.name} />
-                                    ) : (
-                                        <div className="no-image">
-                                            <Package size={32} />
-                                        </div>
-                                    )}
-                                    {!product.is_active && (
-                                        <div className="inactive-badge">Inactive</div>
-                                    )}
-                                </div>
-                                <div className="product-info">
-                                    <h3>{product.name}</h3>
-                                    <p className="product-category">{product.category_name}</p>
-                                    <p className="product-price">₹{Number(product.price || 0).toFixed(2)}</p>
-                                    {product.description && (
-                                        <p className="product-description">{product.description}</p>
-                                    )}
-                                </div>
-                                <div className="product-actions">
-                                    <button
-                                        className="action-btn edit"
-                                        onClick={() => handleEditProduct(product)}
-                                    >
-                                        <Edit size={16} />
-                                    </button>
-                                    <button
-                                        className="action-btn delete"
-                                        onClick={() => handleDeleteProduct(product.id)}
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="empty-state">
-                        <Package size={48} />
-                        <p>No products found</p>
-                        <button
-                            className="btn btn-primary"
-                            onClick={() => {
-                                setEditingProduct(null);
-                                setShowProductModal(true);
-                            }}
-                        >
-                            <Plus size={18} />
-                            Add Your First Product
-                        </button>
-                    </div>
-                )}
-
-                {/* Product Modal */}
-                {showProductModal && (
-                    <ProductModal
-                        product={editingProduct}
-                        categories={categoriesData}
-                        activeTab={activeTab}
-                        setActiveTab={setActiveTab}
-                        onClose={() => {
-                            setShowProductModal(false);
-                            setEditingProduct(null);
-                        }}
-                        onSuccess={() => {
-                            queryClient.invalidateQueries(['products']);
-                            setShowProductModal(false);
-                            setEditingProduct(null);
-                        }}
-                    />
-                )}
-
-                {/* Category Modal */}
-                {showCategoryModal && (
-                    <CategoryModal
-                        categories={categoriesData}
-                        onClose={() => {
-                            setShowCategoryModal(false);
+                <div className="header-actions">
+                    <button
+                        className="btn btn-secondary"
+                        onClick={() => {
                             setEditingCategory(null);
+                            setShowCategoryModal(true);
                         }}
-                        onSuccess={() => {
-                            queryClient.invalidateQueries(['categories']);
+                    >
+                        <Tag size={18} />
+                        Manage Categories
+                    </button>
+                    <button
+                        className="btn btn-primary"
+                        onClick={() => {
+                            setEditingProduct(null);
+                            setActiveTab('general');
+                            setShowProductModal(true);
                         }}
-                    />
-                )}
+                    >
+                        <Plus size={18} />
+                        New Product
+                    </button>
+                </div>
             </div>
-        </Layout>
+
+            {/* Filters */}
+            <div className="filters-section">
+                <div className="search-box">
+                    <Search size={20} />
+                    <input
+                        type="text"
+                        placeholder="Search products..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+
+                <div className="category-filters">
+                    <button
+                        className={`filter-btn ${!selectedCategory ? 'active' : ''}`}
+                        onClick={() => setSelectedCategory('')}
+                    >
+                        All
+                    </button>
+                    {categoriesData?.map(category => (
+                        <button
+                            key={category.id}
+                            className={`filter-btn ${selectedCategory === category.id ? 'active' : ''}`}
+                            onClick={() => setSelectedCategory(category.id)}
+                            style={{
+                                borderColor: selectedCategory === category.id ? category.color : 'transparent',
+                                color: selectedCategory === category.id ? category.color : 'inherit'
+                            }}
+                        >
+                            {category.name}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Products Grid */}
+            {productsLoading ? (
+                <div className="loading-container">
+                    <div className="spinner-large"></div>
+                    <p>Loading products...</p>
+                </div>
+            ) : filteredProducts && filteredProducts.length > 0 ? (
+                <div className="products-grid">
+                    {filteredProducts.map(product => (
+                        <div key={product.id} className="product-card">
+                            <div className="product-image">
+                                {product.image_url ? (
+                                    <img src={product.image_url} alt={product.name} />
+                                ) : (
+                                    <div className="no-image">
+                                        <Package size={32} />
+                                    </div>
+                                )}
+                                {!product.is_active && (
+                                    <div className="inactive-badge">Inactive</div>
+                                )}
+                            </div>
+                            <div className="product-info">
+                                <h3>{product.name}</h3>
+                                <p className="product-category">{product.category_name}</p>
+                                <p className="product-price">₹{Number(product.price || 0).toFixed(2)}</p>
+                                {product.description && (
+                                    <p className="product-description">{product.description}</p>
+                                )}
+                            </div>
+                            <div className="product-actions">
+                                <button
+                                    className="action-btn edit"
+                                    onClick={() => handleEditProduct(product)}
+                                >
+                                    <Edit size={16} />
+                                </button>
+                                <button
+                                    className="action-btn delete"
+                                    onClick={() => handleDeleteProduct(product.id)}
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="empty-state">
+                    <Package size={48} />
+                    <p>No products found</p>
+                    <button
+                        className="btn btn-primary"
+                        onClick={() => {
+                            setEditingProduct(null);
+                            setShowProductModal(true);
+                        }}
+                    >
+                        <Plus size={18} />
+                        Add Your First Product
+                    </button>
+                </div>
+            )}
+
+            {/* Product Modal */}
+            {showProductModal && (
+                <ProductModal
+                    product={editingProduct}
+                    categories={categoriesData}
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                    onClose={() => {
+                        setShowProductModal(false);
+                        setEditingProduct(null);
+                    }}
+                    onSuccess={() => {
+                        queryClient.invalidateQueries(['products']);
+                        setShowProductModal(false);
+                        setEditingProduct(null);
+                    }}
+                />
+            )}
+
+            {/* Category Modal */}
+            {showCategoryModal && (
+                <CategoryModal
+                    categories={categoriesData}
+                    onClose={() => {
+                        setShowCategoryModal(false);
+                        setEditingCategory(null);
+                    }}
+                    onSuccess={() => {
+                        queryClient.invalidateQueries(['categories']);
+                    }}
+                />
+            )}
+        </div>
     );
 };
 

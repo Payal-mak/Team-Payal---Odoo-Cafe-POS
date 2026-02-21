@@ -1,12 +1,13 @@
-import Sidebar from './Sidebar';
+import { Outlet } from 'react-router-dom';
+import Header from './Header';
 import './Layout.css';
 
-const Layout = ({ children }) => {
+const Layout = () => {
     return (
-        <div className="layout">
-            <Sidebar />
+        <div className="app-layout">
+            <Header />
             <main className="main-content">
-                {children}
+                <Outlet />
             </main>
         </div>
     );
