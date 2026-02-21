@@ -1,570 +1,281 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import {
-    Plus,
-    Search,
-    Edit,
-    Trash2,
-    Package,
-    X,
-    Upload,
-    Tag,
-    GripVertical
+    Plus, Search, Package, Tag,
+    ChevronDown, Loader2, X
 } from 'lucide-react';
-import {
-    DndContext,
-    closestCenter,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-} from '@dnd-kit/core';
-import {
-    arrayMove,
-    SortableContext,
-    sortableKeyboardCoordinates,
-    verticalListSortingStrategy,
-    useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import './ProductsPage.css';
 
+/* ─────────────────────────────────────
+   Category badge
+───────────────────────────────────── */
+const CategoryBadge = ({ name, color }) => (
+    <span
+        className="cat-badge"
+        style={{
+            background: color ? `${color}22` : '#f3f4f6',
+            color: color || '#666',
+            borderColor: color ? `${color}44` : '#e5e7eb'
+        }}
+    >
+        {name}
+    </span>
+);
+
+/* ─────────────────────────────────────
+   Action dropdown (bulk)
+───────────────────────────────────── */
+const BulkDropdown = ({ count, onArchive, onDelete, disabled }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+
+    // Close on outside click
+    const closeHandler = () => setOpen(false);
+
+    return (
+        <div className="bulk-drop" ref={ref}>
+            <button
+                className="bulk-drop-btn"
+                onClick={() => setOpen(v => !v)}
+                disabled={disabled}
+            >
+                Actions <ChevronDown size={13} />
+            </button>
+            {open && (
+                <div className="bulk-drop-menu" onClick={() => setOpen(false)}>
+                    <button className="bdm-item" onClick={onArchive}>
+                        Archive
+                    </button>
+                    <button className="bdm-item danger" onClick={onDelete}>
+                        Delete
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+/* ─────────────────────────────────────
+   Products List Page
+───────────────────────────────────── */
 const ProductsPage = () => {
-    const queryClient = useQueryClient();
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState('');
-    const [showProductModal, setShowProductModal] = useState(false);
-    const [showCategoryModal, setShowCategoryModal] = useState(false);
-    const [editingProduct, setEditingProduct] = useState(null);
-    const [editingCategory, setEditingCategory] = useState(null);
-    const [activeTab, setActiveTab] = useState('general'); // general or variants
+    const navigate = useNavigate();
+    const qc = useQueryClient();
 
-    // Fetch products
-    const { data: productsData, isLoading: productsLoading } = useQuery({
-        queryKey: ['products', selectedCategory],
+    const [search, setSearch] = useState('');
+    const [catFilter, setCatFilter] = useState('');
+    const [selected, setSelected] = useState([]);
+
+    /* ── Fetch ────────────────────────────── */
+    const { data: products = [], isLoading } = useQuery({
+        queryKey: ['products', catFilter],
         queryFn: async () => {
-            const url = selectedCategory
-                ? `/products?category_id=${selectedCategory}`
+            const url = catFilter
+                ? `/products?category_id=${catFilter}`
                 : '/products';
-            const response = await api.get(url);
-            return response.data.data;
+            return (await api.get(url)).data.data ?? [];
         }
     });
 
-    // Fetch categories
-    const { data: categoriesData } = useQuery({
+    const { data: categories = [] } = useQuery({
         queryKey: ['categories'],
-        queryFn: async () => {
-            const response = await api.get('/categories');
-            return response.data.data;
-        }
+        queryFn: async () => (await api.get('/categories')).data.data ?? []
     });
 
-    // Filter products by search
-    const filteredProducts = productsData?.filter(product =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase())
+    /* Local filter */
+    const filtered = products.filter(p =>
+        p.name?.toLowerCase().includes(search.toLowerCase())
     );
 
-    const handleEditProduct = (product) => {
-        setEditingProduct(product);
-        setShowProductModal(true);
+    /* ── Mutations ────────────────────────── */
+    const archiveMut = useMutation({
+        mutationFn: ids => Promise.all(
+            ids.map(id => api.put(`/products/${id}`, { is_active: false }))
+        ),
+        onSuccess: () => { toast.success('Archived'); setSelected([]); qc.invalidateQueries(['products']); },
+        onError: () => toast.error('Archive failed')
+    });
+
+    const deleteMut = useMutation({
+        mutationFn: ids => Promise.all(ids.map(id => api.delete(`/products/${id}`))),
+        onSuccess: () => { toast.success('Deleted'); setSelected([]); qc.invalidateQueries(['products']); },
+        onError: e => toast.error(e.response?.data?.message || 'Delete failed')
+    });
+
+    /* ── Selection ────────────────────────── */
+    const toggleSelect = id =>
+        setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+    const toggleAll = () =>
+        setSelected(selected.length === filtered.length ? [] : filtered.map(p => p.id));
+
+    const isBusy = archiveMut.isPending || deleteMut.isPending;
+
+    const handleArchive = () => {
+        if (!window.confirm(`Archive ${selected.length} product(s)?`)) return;
+        archiveMut.mutate(selected);
     };
 
-    const handleDeleteProduct = async (productId) => {
-        if (!confirm('Are you sure you want to delete this product?')) return;
-
-        try {
-            await api.delete(`/products/${productId}`);
-            toast.success('Product deleted successfully');
-            queryClient.invalidateQueries(['products']);
-        } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to delete product');
-        }
-    };
-
-    const handleEditCategory = (category) => {
-        setEditingCategory(category);
-        setShowCategoryModal(true);
-    };
-
-    const handleDeleteCategory = async (categoryId) => {
-        if (!confirm('Are you sure you want to delete this category?')) return;
-
-        try {
-            await api.delete(`/categories/${categoryId}`);
-            toast.success('Category deleted successfully');
-            queryClient.invalidateQueries(['categories']);
-        } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to delete category');
-        }
+    const handleDelete = () => {
+        if (!window.confirm(`Permanently delete ${selected.length} product(s)?`)) return;
+        deleteMut.mutate(selected);
     };
 
     return (
         <div className="products-page">
-            <div className="page-header">
+
+            {/* Header */}
+            <div className="pp2-header">
                 <div>
-                    <h1>Product Management</h1>
-                    <p>Manage your menu items and categories</p>
+                    <h1 className="pp2-title">Products</h1>
+                    <p className="pp2-subtitle">Manage your menu — {products.length} item{products.length !== 1 ? 's' : ''}</p>
                 </div>
-                <div className="header-actions">
-                    <button
-                        className="btn btn-secondary"
-                        onClick={() => {
-                            setEditingCategory(null);
-                            setShowCategoryModal(true);
-                        }}
-                    >
-                        <Tag size={18} />
-                        Manage Categories
-                    </button>
-                    <button
-                        className="btn btn-primary"
-                        onClick={() => {
-                            setEditingProduct(null);
-                            setActiveTab('general');
-                            setShowProductModal(true);
-                        }}
-                    >
-                        <Plus size={18} />
-                        New Product
-                    </button>
-                </div>
+                <button className="btn-primary" onClick={() => navigate('/products/new')}>
+                    <Plus size={16} /> New Product
+                </button>
             </div>
 
-            {/* Filters */}
-            <div className="filters-section">
-                <div className="search-box">
-                    <Search size={20} />
+            {/* Toolbar: search + category filters */}
+            <div className="pp2-toolbar">
+                <div className="pp2-search">
+                    <Search size={15} />
                     <input
                         type="text"
-                        placeholder="Search products..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search products…"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
                     />
-                </div>
-
-                <div className="category-filters">
-                    <button
-                        className={`filter-btn ${!selectedCategory ? 'active' : ''}`}
-                        onClick={() => setSelectedCategory('')}
-                    >
-                        All
-                    </button>
-                    {categoriesData?.map(category => (
-                        <button
-                            key={category.id}
-                            className={`filter-btn ${selectedCategory === category.id ? 'active' : ''}`}
-                            onClick={() => setSelectedCategory(category.id)}
-                            style={{
-                                borderColor: selectedCategory === category.id ? category.color : 'transparent',
-                                color: selectedCategory === category.id ? category.color : 'inherit'
-                            }}
-                        >
-                            {category.name}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            {/* Products Grid */}
-            {productsLoading ? (
-                <div className="loading-container">
-                    <div className="spinner-large"></div>
-                    <p>Loading products...</p>
-                </div>
-            ) : filteredProducts && filteredProducts.length > 0 ? (
-                <div className="products-grid">
-                    {filteredProducts.map(product => (
-                        <div key={product.id} className="product-card">
-                            <div className="product-image">
-                                {product.image_url ? (
-                                    <img src={product.image_url} alt={product.name} />
-                                ) : (
-                                    <div className="no-image">
-                                        <Package size={32} />
-                                    </div>
-                                )}
-                                {!product.is_active && (
-                                    <div className="inactive-badge">Inactive</div>
-                                )}
-                            </div>
-                            <div className="product-info">
-                                <h3>{product.name}</h3>
-                                <p className="product-category">{product.category_name}</p>
-                                <p className="product-price">₹{Number(product.price || 0).toFixed(2)}</p>
-                                {product.description && (
-                                    <p className="product-description">{product.description}</p>
-                                )}
-                            </div>
-                            <div className="product-actions">
-                                <button
-                                    className="action-btn edit"
-                                    onClick={() => handleEditProduct(product)}
-                                >
-                                    <Edit size={16} />
-                                </button>
-                                <button
-                                    className="action-btn delete"
-                                    onClick={() => handleDeleteProduct(product.id)}
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            ) : (
-                <div className="empty-state">
-                    <Package size={48} />
-                    <p>No products found</p>
-                    <button
-                        className="btn btn-primary"
-                        onClick={() => {
-                            setEditingProduct(null);
-                            setShowProductModal(true);
-                        }}
-                    >
-                        <Plus size={18} />
-                        Add Your First Product
-                    </button>
-                </div>
-            )}
-
-            {/* Product Modal */}
-            {showProductModal && (
-                <ProductModal
-                    product={editingProduct}
-                    categories={categoriesData}
-                    activeTab={activeTab}
-                    setActiveTab={setActiveTab}
-                    onClose={() => {
-                        setShowProductModal(false);
-                        setEditingProduct(null);
-                    }}
-                    onSuccess={() => {
-                        queryClient.invalidateQueries(['products']);
-                        setShowProductModal(false);
-                        setEditingProduct(null);
-                    }}
-                />
-            )}
-
-            {/* Category Modal */}
-            {showCategoryModal && (
-                <CategoryModal
-                    categories={categoriesData}
-                    onClose={() => {
-                        setShowCategoryModal(false);
-                        setEditingCategory(null);
-                    }}
-                    onSuccess={() => {
-                        queryClient.invalidateQueries(['categories']);
-                    }}
-                />
-            )}
-        </div>
-    );
-};
-
-// Product Modal Component
-const ProductModal = ({ product, categories, activeTab, setActiveTab, onClose, onSuccess }) => {
-    const [formData, setFormData] = useState({
-        name: product?.name || '',
-        category_id: product?.category_id || '',
-        price: product?.price || '',
-        unit: product?.unit || 'piece',
-        tax_percentage: product?.tax_percentage || 0,
-        description: product?.description || '',
-        is_active: product?.is_active ?? true
-    });
-    const [variants, setVariants] = useState([]);
-    const [imageFile, setImageFile] = useState(null);
-    const [imagePreview, setImagePreview] = useState(product?.image_url || null);
-
-    const handleImageChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setImageFile(file);
-            setImagePreview(URL.createObjectURL(file));
-        }
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        try {
-            if (product) {
-                await api.put(`/products/${product.id}`, formData);
-                toast.success('Product updated successfully');
-            } else {
-                await api.post('/products', formData);
-                toast.success('Product created successfully');
-            }
-            onSuccess();
-        } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to save product');
-        }
-    };
-
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content large" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2>{product ? 'Edit Product' : 'New Product'}</h2>
-                    <button className="close-btn" onClick={onClose}>
-                        <X size={24} />
-                    </button>
-                </div>
-
-                <div className="modal-tabs">
-                    <button
-                        className={`tab-btn ${activeTab === 'general' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('general')}
-                    >
-                        General Info
-                    </button>
-                    {product && (
-                        <button
-                            className={`tab-btn ${activeTab === 'variants' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('variants')}
-                        >
-                            Variants
+                    {search && (
+                        <button className="pp2-clear" onClick={() => setSearch('')}>
+                            <X size={13} />
                         </button>
                     )}
                 </div>
 
-                {activeTab === 'general' ? (
-                    <form onSubmit={handleSubmit} className="modal-body">
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label>Product Name *</label>
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    required
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Category *</label>
-                                <select
-                                    className="form-control"
-                                    value={formData.category_id}
-                                    onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                                    required
-                                >
-                                    <option value="">Select Category</option>
-                                    {categories?.map(cat => (
-                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
+                <div className="pp2-cats">
+                    <button
+                        className={`cat-filter ${!catFilter ? 'active' : ''}`}
+                        onClick={() => setCatFilter('')}
+                    >
+                        All
+                    </button>
+                    {categories.map(c => (
+                        <button
+                            key={c.id}
+                            className={`cat-filter ${catFilter === String(c.id) ? 'active' : ''}`}
+                            style={catFilter === String(c.id)
+                                ? { background: c.color, color: '#fff', borderColor: c.color }
+                                : { borderColor: c.color + '55', color: c.color || '#666' }}
+                            onClick={() => setCatFilter(v => v === String(c.id) ? '' : String(c.id))}
+                        >
+                            {c.name}
+                        </button>
+                    ))}
+                </div>
 
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label>Price *</label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    className="form-control"
-                                    value={formData.price}
-                                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                                    required
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Unit</label>
-                                <select
-                                    className="form-control"
-                                    value={formData.unit}
-                                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                                >
-                                    <option value="piece">Piece</option>
-                                    <option value="kg">Kilogram</option>
-                                    <option value="liter">Liter</option>
-                                    <option value="plate">Plate</option>
-                                    <option value="cup">Cup</option>
-                                </select>
-                            </div>
-                            <div className="form-group">
-                                <label>Tax %</label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    className="form-control"
-                                    value={formData.tax_percentage}
-                                    onChange={(e) => setFormData({ ...formData, tax_percentage: e.target.value })}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="form-group">
-                            <label>Description</label>
-                            <textarea
-                                className="form-control"
-                                rows="3"
-                                value={formData.description}
-                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label>Product Image</label>
-                            <div className="image-upload">
-                                {imagePreview && (
-                                    <div className="image-preview">
-                                        <img src={imagePreview} alt="Preview" />
-                                    </div>
-                                )}
-                                <label className="upload-btn">
-                                    <Upload size={18} />
-                                    Choose Image
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleImageChange}
-                                        style={{ display: 'none' }}
-                                    />
-                                </label>
-                            </div>
-                        </div>
-
-                        <div className="form-group">
-                            <label className="checkbox-label">
-                                <input
-                                    type="checkbox"
-                                    checked={formData.is_active}
-                                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                                />
-                                Active
-                            </label>
-                        </div>
-
-                        <div className="modal-footer">
-                            <button type="button" className="btn btn-secondary" onClick={onClose}>
-                                Cancel
-                            </button>
-                            <button type="submit" className="btn btn-primary">
-                                {product ? 'Update Product' : 'Create Product'}
-                            </button>
-                        </div>
-                    </form>
-                ) : (
-                    <div className="modal-body">
-                        <p className="text-secondary">Variant management coming soon...</p>
+                {/* Bulk actions */}
+                {selected.length > 0 && (
+                    <div className="pp2-bulk">
+                        <span className="pp2-bulk-count">{selected.length} Selected</span>
+                        <BulkDropdown
+                            count={selected.length}
+                            onArchive={handleArchive}
+                            onDelete={handleDelete}
+                            disabled={isBusy}
+                        />
                     </div>
                 )}
             </div>
-        </div>
-    );
-};
 
-// Category Modal Component
-const CategoryModal = ({ categories, onClose, onSuccess }) => {
-    const [formData, setFormData] = useState({
-        name: '',
-        color: '#2D5F5D'
-    });
-    const [editingId, setEditingId] = useState(null);
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        try {
-            if (editingId) {
-                await api.put(`/categories/${editingId}`, formData);
-                toast.success('Category updated');
-            } else {
-                await api.post('/categories', formData);
-                toast.success('Category created');
-            }
-            setFormData({ name: '', color: '#2D5F5D' });
-            setEditingId(null);
-            onSuccess();
-        } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to save category');
-        }
-    };
-
-    const handleEdit = (category) => {
-        setFormData({ name: category.name, color: category.color });
-        setEditingId(category.id);
-    };
-
-    const handleDelete = async (id) => {
-        if (!confirm('Delete this category?')) return;
-        try {
-            await api.delete(`/categories/${id}`);
-            toast.success('Category deleted');
-            onSuccess();
-        } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to delete');
-        }
-    };
-
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2>Manage Categories</h2>
-                    <button className="close-btn" onClick={onClose}>
-                        <X size={24} />
-                    </button>
+            {/* Table */}
+            {isLoading ? (
+                <div className="pp2-loading">
+                    <Loader2 className="spin" size={32} />
+                    <p>Loading products…</p>
                 </div>
-
-                <form onSubmit={handleSubmit} className="modal-body">
-                    <div className="form-row">
-                        <div className="form-group flex-1">
-                            <label>Category Name</label>
-                            <input
-                                type="text"
-                                className="form-control"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                required
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Color</label>
-                            <input
-                                type="color"
-                                className="form-control color-picker"
-                                value={formData.color}
-                                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                            />
-                        </div>
-                    </div>
-                    <button type="submit" className="btn btn-primary btn-block">
-                        {editingId ? 'Update' : 'Add'} Category
-                    </button>
-                </form>
-
-                <div className="categories-list">
-                    {categories?.map(category => (
-                        <div key={category.id} className="category-item">
-                            <div className="category-info">
-                                <div
-                                    className="color-dot"
-                                    style={{ background: category.color }}
-                                />
-                                <span>{category.name}</span>
-                            </div>
-                            <div className="category-actions">
-                                <button onClick={() => handleEdit(category)}>
-                                    <Edit size={16} />
-                                </button>
-                                <button onClick={() => handleDelete(category.id)}>
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-                        </div>
-                    ))}
+            ) : filtered.length > 0 ? (
+                <div className="pp2-table-wrap">
+                    <table className="pp2-table">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <input
+                                        type="checkbox"
+                                        className="pp2-cb"
+                                        checked={selected.length === filtered.length && filtered.length > 0}
+                                        onChange={toggleAll}
+                                    />
+                                </th>
+                                <th>Product</th>
+                                <th>Category</th>
+                                <th className="num-col">Price</th>
+                                <th className="num-col">Tax</th>
+                                <th>UOM</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filtered.map(p => (
+                                <tr
+                                    key={p.id}
+                                    className="pp2-row"
+                                    onClick={e => { if (e.target.type !== 'checkbox') navigate(`/products/${p.id}`); }}
+                                >
+                                    <td onClick={e => e.stopPropagation()}>
+                                        <input
+                                            type="checkbox"
+                                            className="pp2-cb"
+                                            checked={selected.includes(p.id)}
+                                            onChange={() => toggleSelect(p.id)}
+                                        />
+                                    </td>
+                                    <td>
+                                        <div className="pp2-prod-cell">
+                                            <div className="pp2-img">
+                                                {p.image_url
+                                                    ? <img src={p.image_url} alt={p.name} />
+                                                    : <Package size={20} />}
+                                            </div>
+                                            <div>
+                                                <p className="pp2-name">{p.name}</p>
+                                                {p.description && (
+                                                    <p className="pp2-desc">{p.description.substring(0, 50)}{p.description.length > 50 ? '…' : ''}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {p.category_name
+                                            ? <CategoryBadge name={p.category_name} color={p.category_color} />
+                                            : <span className="muted">—</span>}
+                                    </td>
+                                    <td className="num-col pp2-price">₹{Number(p.price || 0).toFixed(2)}</td>
+                                    <td className="num-col">{p.tax_percentage || 0}%</td>
+                                    <td><span className="pp2-uom">{p.unit || 'Unit'}</span></td>
+                                    <td>
+                                        <span className={`pp2-status ${p.is_active ? 'active' : 'inactive'}`}>
+                                            {p.is_active ? 'Active' : 'Archived'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
-            </div>
+            ) : (
+                <div className="pp2-empty">
+                    <Package size={48} />
+                    <p>{search ? `No results for "${search}"` : 'No products yet'}</p>
+                    {!search && (
+                        <button className="btn-primary" onClick={() => navigate('/products/new')}>
+                            <Plus size={16} /> Add First Product
+                        </button>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
