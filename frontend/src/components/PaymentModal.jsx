@@ -25,7 +25,7 @@ const PaymentModal = ({ total, cart, customer, notes, onClose, onSuccess, sessio
     const paymentMutation = useMutation({
         mutationFn: async (paymentData) => {
             // First create the order
-            const orderResponse = await api.post('/orders', {
+            const orderPayload = {
                 session_id: sessionId,
                 table_id: tableId || null,
                 customer_id: customer?.id || null,
@@ -33,10 +33,26 @@ const PaymentModal = ({ total, cart, customer, notes, onClose, onSuccess, sessio
                 notes: notes,
                 items: cart.map(item => ({
                     product_id: item.product_id,
-                    quantity: Number(item.quantity) || 1,
-                    unit_price: parseFloat(item.price) || 0
+                    product_name: item.product_name || item.name || 'Unknown',
+                    quantity: parseInt(item.quantity) || 1,
+                    unit_price: parseFloat(item.unit_price || item.price) || 0,
+                    discount: parseFloat(item.discount) || 0,
+                    notes: item.notes || ''
                 }))
-            });
+            };
+
+            // Validate before sending
+            for (const item of orderPayload.items) {
+                if (!item.product_name) {
+                    throw new Error(`Missing product name for item ${item.product_id}`);
+                }
+                if (isNaN(item.unit_price) || isNaN(item.quantity)) {
+                    throw new Error(`Invalid price or quantity for ${item.product_name}`);
+                }
+            }
+
+            // First create the order
+            const orderResponse = await api.post('/orders', orderPayload);
 
             const orderId = orderResponse.data.data.id;
 

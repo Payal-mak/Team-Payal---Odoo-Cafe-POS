@@ -67,14 +67,22 @@ exports.createOrder = async (req, res, next) => {
 
         // Create order items
         for (const item of items) {
+            const productName = item.product_name || item.name || null;
             const quantity = parseInt(item.quantity) || 1;
             const unit_price = parseFloat(item.unit_price) || 0;
             const tax_percentage = parseFloat(item.tax_percentage) || 0;
 
+            if (!productName) {
+                return res.status(400).json({
+                    success: false,
+                    message: `product_name is required for each item`
+                });
+            }
+
             if (isNaN(quantity) || isNaN(unit_price)) {
                 return res.status(400).json({
                     success: false,
-                    message: `Invalid quantity or price for item: ${item.product_name}`
+                    message: `Invalid quantity or price for item: ${productName}`
                 });
             }
 
@@ -84,7 +92,7 @@ exports.createOrder = async (req, res, next) => {
 
             const [itemResult] = await promisePool.query(
                 'INSERT INTO order_items (order_id, product_id, product_name, quantity, unit_price, tax_amount, subtotal, total, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [orderId, item.product_id, item.product_name, quantity, unit_price, itemTax, itemSubtotal, itemTotal, item.notes || null]
+                [orderId, item.product_id, productName, quantity, unit_price, itemTax, itemSubtotal, itemTotal, item.notes || null]
             );
 
             // Add variants if any
@@ -102,6 +110,32 @@ exports.createOrder = async (req, res, next) => {
         if (table_id) {
             await promisePool.query('UPDATE tables SET status = ? WHERE id = ?', ['occupied', table_id]);
         }
+
+        // Create kitchen ticket automatically
+        const [kitchenTicket] = await promisePool.query(
+            `INSERT INTO kitchen_tickets (order_id, status, created_at)
+             VALUES (?, 'to_cook', NOW())`,
+            [orderId]
+        );
+
+        // Also insert kitchen_ticket_items for each order item
+        const [orderItems] = await promisePool.query(
+            'SELECT * FROM order_items WHERE order_id = ?', [orderId]
+        );
+        for (const oi of orderItems) {
+            await promisePool.query(
+                `INSERT INTO kitchen_ticket_items
+                 (ticket_id, order_item_id, product_name, quantity, prepared)
+                 VALUES (?, ?, ?, ?, false)`,
+                [kitchenTicket.insertId, oi.id, oi.product_name, oi.quantity]
+            );
+        }
+
+        // Update order status to sent_to_kitchen
+        await promisePool.query(
+            'UPDATE orders SET status = ? WHERE id = ?',
+            ['sent_to_kitchen', orderId]
+        );
 
         const [orders] = await promisePool.query('SELECT * FROM orders WHERE id = ?', [orderId]);
         res.status(201).json({ success: true, message: 'Order created successfully', data: orders[0] });

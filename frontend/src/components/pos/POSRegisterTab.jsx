@@ -351,9 +351,11 @@ const POSRegisterTab = ({ sessionId }) => {
                     tableId={selectedTable?.id}
                     cart={cartItems.map(c => ({
                         product_id: c.product.id,
-                        name: c.product.name,
-                        price: c.price,
-                        quantity: c.qty
+                        product_name: c.product.name,
+                        price: parseFloat(c.price) || 0,
+                        quantity: parseInt(c.qty) || 1,
+                        discount: parseFloat(c.discount) || 0,
+                        notes: c.notes || ''
                     }))}
                     customer={{ name: customerName }}
                     notes={orderNotes}
@@ -364,6 +366,9 @@ const POSRegisterTab = ({ sessionId }) => {
                         setCustomerName('');
                         setShowPaymentModal(false);
                         queryClient.invalidateQueries(['orders']);
+                        queryClient.invalidateQueries(['dashboard-stats']);
+                        queryClient.invalidateQueries(['active-sessions']);
+                        queryClient.invalidateQueries(['terminals']);
                         toast.success('Payment completed successfully!');
                     }}
                 />
