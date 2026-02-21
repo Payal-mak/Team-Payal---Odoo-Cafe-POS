@@ -11,14 +11,14 @@ exports.getDashboardStats = async (req, res, next) => {
                 COALESCE(SUM(subtotal), 0) as subtotal,
                 COALESCE(SUM(tax_amount), 0) as tax_amount
             FROM orders
-            WHERE DATE(order_date) = CURDATE() AND status != 'cancelled'
+            WHERE DATE(created_at) = CURDATE() AND status NOT IN ('cancelled', 'draft')
         `);
 
         // Active orders
         const [activeOrders] = await promisePool.query(`
             SELECT COUNT(*) as count
             FROM orders
-            WHERE status IN ('draft', 'sent_to_kitchen', 'preparing', 'completed') AND payment_status != 'paid'
+            WHERE status IN ('sent_to_kitchen', 'preparing')
         `);
 
         // Occupied tables
@@ -45,7 +45,7 @@ exports.getDashboardStats = async (req, res, next) => {
             FROM order_items oi
             LEFT JOIN products p ON oi.product_id = p.id
             LEFT JOIN orders o ON oi.order_id = o.id
-            WHERE DATE(o.order_date) = CURDATE() AND o.status != 'cancelled'
+            WHERE DATE(o.created_at) = CURDATE() AND o.status NOT IN ('cancelled', 'draft')
             GROUP BY p.id, p.name
             ORDER BY quantity_sold DESC
             LIMIT 5
@@ -213,6 +213,133 @@ exports.exportReport = async (req, res, next) => {
                 end_date
             }
         });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Advanced reporting endpoint for the customized Reports Page
+exports.getAdvancedReports = async (req, res, next) => {
+    try {
+        const { duration = 'Today' } = req.query;
+        let dateFilter = '';
+        let dateFilterPrev = '';
+        let groupByFormat = '%H:00'; // Default hourly for today
+
+        if (duration === 'Today') {
+            dateFilter = 'DATE(o.created_at) = CURDATE()';
+            dateFilterPrev = 'DATE(o.created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)';
+            groupByFormat = '%H:00';
+        } else if (duration === 'Weekly') {
+            dateFilter = 'o.created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)';
+            dateFilterPrev = 'o.created_at >= DATE_SUB(CURDATE(), INTERVAL 14 DAY) AND o.created_at < DATE_SUB(CURDATE(), INTERVAL 7 DAY)';
+            groupByFormat = '%Y-%m-%d';
+        } else if (duration === 'Monthly') {
+            dateFilter = 'o.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)';
+            dateFilterPrev = 'o.created_at >= DATE_SUB(CURDATE(), INTERVAL 60 DAY) AND o.created_at < DATE_SUB(CURDATE(), INTERVAL 30 DAY)';
+            groupByFormat = '%Y-%m-%d';
+        } else if (duration === '365 Days') {
+            dateFilter = 'o.created_at >= DATE_SUB(CURDATE(), INTERVAL 365 DAY)';
+            dateFilterPrev = 'o.created_at >= DATE_SUB(CURDATE(), INTERVAL 730 DAY) AND o.created_at < DATE_SUB(CURDATE(), INTERVAL 365 DAY)';
+            groupByFormat = '%Y-%m';
+        } else {
+            // Default to today
+            dateFilter = 'DATE(o.created_at) = CURDATE()';
+            dateFilterPrev = 'DATE(o.created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)';
+        }
+
+        const statusFilter = `o.status IN ('paid', 'completed')`;
+
+        // Summary queries current
+        const [currentStats] = await promisePool.query(`
+            SELECT 
+                COUNT(*) as total_orders,
+                COALESCE(SUM(o.total_amount), 0) as revenue
+            FROM orders o
+            WHERE ${dateFilter} AND ${statusFilter}
+        `);
+
+        // Summary queries prior
+        const [prevStats] = await promisePool.query(`
+            SELECT 
+                COUNT(*) as total_orders,
+                COALESCE(SUM(o.total_amount), 0) as revenue
+            FROM orders o
+            WHERE ${dateFilterPrev} AND ${statusFilter}
+        `);
+
+        // Sales Graph
+        const [salesGraph] = await promisePool.query(`
+            SELECT 
+                DATE_FORMAT(o.created_at, '${groupByFormat}') as time,
+                COALESCE(SUM(o.total_amount), 0) as revenue
+            FROM orders o
+            WHERE ${dateFilter} AND ${statusFilter}
+            GROUP BY time
+            ORDER BY MIN(o.created_at) ASC
+        `);
+
+        // Top Category Pie Chart
+        const [topCategories] = await promisePool.query(`
+            SELECT 
+                c.name,
+                COALESCE(SUM(oi.total), 0) as revenue
+            FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            JOIN products p ON oi.product_id = p.id
+            JOIN categories c ON p.category_id = c.id
+            WHERE ${dateFilter} AND ${statusFilter}
+            GROUP BY c.id, c.name
+            ORDER BY revenue DESC
+            LIMIT 10
+        `);
+
+        // Top Orders Table
+        const [topOrders] = await promisePool.query(`
+            SELECT 
+                o.created_at as Date,
+                o.session_id as Session,
+                o.total_amount as Total,
+                SUM(oi.quantity) as Qty,
+                COALESCE(cu.name, 'Walk-in') as Customer
+            FROM orders o
+            LEFT JOIN order_items oi ON oi.order_id = o.id
+            LEFT JOIN customers cu ON o.customer_id = cu.id
+            WHERE ${dateFilter} AND ${statusFilter}
+            GROUP BY o.id, o.created_at, o.session_id, o.total_amount, cu.name
+            ORDER BY o.total_amount DESC
+            LIMIT 10
+        `);
+
+        // Top Product Table
+        const [topProduct] = await promisePool.query(`
+            SELECT 
+                p.name as Product,
+                SUM(oi.quantity) as Qty,
+                COALESCE(SUM(oi.total), 0) as Revenue
+            FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            JOIN products p ON oi.product_id = p.id
+            WHERE ${dateFilter} AND ${statusFilter}
+            GROUP BY p.id, p.name
+            ORDER BY Revenue DESC
+            LIMIT 10
+        `);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                summary: {
+                    current: currentStats[0],
+                    previous: prevStats[0]
+                },
+                salesData: salesGraph,
+                topCategories: topCategories,
+                topOrders: topOrders,
+                topProduct: topProduct
+            }
+        });
+
     } catch (error) {
         next(error);
     }

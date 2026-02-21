@@ -1,428 +1,257 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
-import {
-    Calendar,
-    TrendingUp,
-    DollarSign,
-    ShoppingBag,
-    Download,
-    BarChart3,
-    Package,
-    Tag,
-    X
-} from 'lucide-react';
-import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import './ReportsPage.css';
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
+import { Download, X, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { format } from 'date-fns';
+
+const COLORS = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'];
 
 const ReportsPage = () => {
-    const [activeTab, setActiveTab] = useState('sales'); // sales, products, categories
-    const [dateRange, setDateRange] = useState('today');
-    const [customStartDate, setCustomStartDate] = useState('');
-    const [customEndDate, setCustomEndDate] = useState('');
-    const [showExportModal, setShowExportModal] = useState(false);
+    const [duration, setDuration] = useState('Today');
 
-    // Calculate date range
-    const getDateRange = () => {
-        const today = new Date();
-        switch (dateRange) {
-            case 'today':
-                return {
-                    start_date: format(today, 'yyyy-MM-dd'),
-                    end_date: format(today, 'yyyy-MM-dd')
-                };
-            case 'week':
-                return {
-                    start_date: format(subDays(today, 7), 'yyyy-MM-dd'),
-                    end_date: format(today, 'yyyy-MM-dd')
-                };
-            case 'month':
-                return {
-                    start_date: format(startOfMonth(today), 'yyyy-MM-dd'),
-                    end_date: format(endOfMonth(today), 'yyyy-MM-dd')
-                };
-            case 'custom':
-                return {
-                    start_date: customStartDate,
-                    end_date: customEndDate
-                };
-            default:
-                return {};
+    // Filters array representation
+    const [filters, setFilters] = useState([
+        { id: 'period', label: 'Select period' },
+        { id: 'responsible', label: 'Responsible' },
+        { id: 'session', label: 'Session' },
+        { id: 'product', label: 'Product' }
+    ]);
+
+    const { data: rawData, isLoading, refetch, isFetching } = useQuery({
+        queryKey: ['advanced-reports', duration],
+        queryFn: async () => {
+            const res = await api.get(`/reports/advanced?duration=${duration}`);
+            return res.data.data;
         }
+    });
+
+    const removeFilter = (id) => {
+        setFilters(filters.filter(f => f.id !== id));
     };
 
-    const dates = getDateRange();
+    // Derived Metrics for Cards
+    const currSummary = rawData?.summary?.current || { total_orders: 0, revenue: 0 };
+    const prevSummary = rawData?.summary?.previous || { total_orders: 0, revenue: 0 };
 
-    // Export functions
-    const handleExport = async (format) => {
-        try {
-            const params = new URLSearchParams(dates);
-            const url = `/reports/export/${format}?${params}`;
+    const currAvg = currSummary.total_orders > 0 ? (currSummary.revenue / currSummary.total_orders) : 0;
+    const prevAvg = prevSummary.total_orders > 0 ? (prevSummary.revenue / prevSummary.total_orders) : 0;
 
-            // Create a temporary link to download the file
-            const response = await api.get(url, { responseType: 'blob' });
-            const blob = new Blob([response.data]);
-            const downloadUrl = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.download = `sales-report-${dates.start_date}-to-${dates.end_date}.${format === 'pdf' ? 'pdf' : 'xlsx'}`;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(downloadUrl);
-
-            setShowExportModal(false);
-        } catch (error) {
-            console.error('Export failed:', error);
-        }
+    const calcPercent = (curr, prev) => {
+        if (prev === 0) return curr > 0 ? 100 : 0;
+        return ((curr - prev) / prev) * 100;
     };
 
-    // Fetch sales report
-    const { data: salesData, isLoading: salesLoading } = useQuery({
-        queryKey: ['sales-report', dates.start_date, dates.end_date],
-        queryFn: async () => {
-            const params = new URLSearchParams(dates);
-            const response = await api.get(`/reports/sales?${params}`);
-            return response.data.data;
-        },
-        enabled: activeTab === 'sales' && !!dates.start_date && !!dates.end_date
-    });
+    const ordersPercent = calcPercent(currSummary.total_orders, prevSummary.total_orders);
+    const revPercent = calcPercent(currSummary.revenue, prevSummary.revenue);
+    const avgPercent = calcPercent(currAvg, prevAvg);
 
-    // Fetch top products
-    const { data: topProductsData, isLoading: productsLoading } = useQuery({
-        queryKey: ['top-products', dates.start_date, dates.end_date],
-        queryFn: async () => {
-            const params = new URLSearchParams({ ...dates, limit: 10 });
-            const response = await api.get(`/reports/top-products?${params}`);
-            return response.data.data;
-        },
-        enabled: activeTab === 'products' && !!dates.start_date && !!dates.end_date
-    });
+    // Format Graph Data (ensure numbers)
+    const salesData = (rawData?.salesData || []).map(d => ({
+        time: d.time,
+        revenue: Number(d.revenue)
+    }));
 
-    // Fetch top categories
-    const { data: topCategoriesData, isLoading: categoriesLoading } = useQuery({
-        queryKey: ['top-categories', dates.start_date, dates.end_date],
-        queryFn: async () => {
-            const params = new URLSearchParams(dates);
-            const response = await api.get(`/reports/top-categories?${params}`);
-            return response.data.data;
-        },
-        enabled: activeTab === 'categories' && !!dates.start_date && !!dates.end_date
-    });
+    // Format Pie Data
+    const pieData = (rawData?.topCategories || []).map(cat => ({
+        name: cat.name,
+        value: Number(cat.revenue)
+    }));
 
-    // Calculate summary stats from sales data
-    const summaryStats = salesData ? {
-        totalRevenue: salesData.reduce((sum, day) => sum + Number(day.total_revenue || 0), 0),
-        totalOrders: salesData.reduce((sum, day) => sum + Number(day.total_orders || 0), 0),
-        avgOrderValue: 0
-    } : { totalRevenue: 0, totalOrders: 0, avgOrderValue: 0 };
-
-    if (summaryStats.totalOrders > 0) {
-        summaryStats.avgOrderValue = summaryStats.totalRevenue / summaryStats.totalOrders;
-    }
+    const renderPercent = (val) => {
+        const isPos = val >= 0;
+        return (
+            <span className={`rp-percent ${isPos ? 'pos' : 'neg'}`}>
+                {isPos ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                {Math.abs(val).toFixed(1)}% Since last period
+            </span>
+        );
+    };
 
     return (
-            <div className="reports-page">
-                <div className="page-header">
-                    <div>
-                        <h1>Reports & Analytics</h1>
-                        <p>View sales performance and insights</p>
-                    </div>
-                    <button className="btn btn-secondary" onClick={() => setShowExportModal(true)}>
-                        <Download size={18} />
-                        Export Report
-                    </button>
+        <div className="reports-page">
+            <div className="rp-header">
+                <div>
+                    <h4 className="rp-breadcrumb">DashBoards</h4>
+                    <h1 className="rp-title">Dashboard</h1>
                 </div>
 
-                {/* Export Modal */}
-                {showExportModal && (
-                    <div className="modal-overlay" onClick={() => setShowExportModal(false)}>
-                        <div className="modal-content export-modal" onClick={(e) => e.stopPropagation()}>
-                            <div className="modal-header">
-                                <h2>Export Report</h2>
-                                <button className="close-btn" onClick={() => setShowExportModal(false)}>
-                                    <X size={24} />
-                                </button>
-                            </div>
-                            <div className="modal-body">
-                                <p>Select export format:</p>
-                                <div className="export-options">
-                                    <button className="export-option-btn" onClick={() => handleExport('pdf')}>
-                                        <Download size={32} />
-                                        <span>PDF Document</span>
-                                    </button>
-                                    <button className="export-option-btn" onClick={() => handleExport('excel')}>
-                                        <Download size={32} />
-                                        <span>Excel Spreadsheet</span>
-                                    </button>
+                <div className="rp-export-group">
+                    <button className="rp-export-btn" disabled><Download size={14} /> PDF</button>
+                    <button className="rp-export-btn" disabled><Download size={14} /> XLS</button>
+                </div>
+            </div>
+
+            <div className="rp-filters">
+                <div className="rp-chips">
+                    {filters.map(f => (
+                        <div key={f.id} className="rp-chip">
+                            {f.label}
+                            <button onClick={() => removeFilter(f.id)}><X size={12} /></button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="rp-layout">
+                {/* Left Sidebar Filter */}
+                <div className="rp-sidebar">
+                    <button className="rp-refresh-btn" onClick={() => refetch()} disabled={isFetching}>
+                        <RefreshCw size={14} className={isFetching ? 'spin' : ''} /> Refresh
+                    </button>
+                    <h3 className="rp-sd-title">Duration</h3>
+                    <ul className="rp-sd-list">
+                        {['Today', 'Weekly', 'Monthly', '365 Days', 'Custom'].map(dur => (
+                            <li
+                                key={dur}
+                                className={duration === dur ? 'active' : ''}
+                                onClick={() => setDuration(dur)}
+                            >
+                                {dur}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+
+                {/* Main Content */}
+                <div className="rp-main">
+                    {isLoading ? (
+                        <div className="rp-loading">Loading reports...</div>
+                    ) : (
+                        <>
+                            {/* Summary Cards */}
+                            <div className="rp-summary-grid">
+                                <div className="rp-card">
+                                    <p className="rp-card-title">Total Order</p>
+                                    <h2 className="rp-card-val">{currSummary.total_orders}</h2>
+                                    {renderPercent(ordersPercent)}
+                                </div>
+                                <div className="rp-card">
+                                    <p className="rp-card-title">Revenue</p>
+                                    <h2 className="rp-card-val">₹{Number(currSummary.revenue).toFixed(2)}</h2>
+                                    {renderPercent(revPercent)}
+                                </div>
+                                <div className="rp-card">
+                                    <p className="rp-card-title">Average Order</p>
+                                    <h2 className="rp-card-val">₹{currAvg.toFixed(2)}</h2>
+                                    {renderPercent(avgPercent)}
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                )}
 
-                {/* Date Range Selector */}
-                <div className="date-range-section">
-                    <div className="date-filters">
-                        <button
-                            className={`filter-btn ${dateRange === 'today' ? 'active' : ''}`}
-                            onClick={() => setDateRange('today')}
-                        >
-                            Today
-                        </button>
-                        <button
-                            className={`filter-btn ${dateRange === 'week' ? 'active' : ''}`}
-                            onClick={() => setDateRange('week')}
-                        >
-                            This Week
-                        </button>
-                        <button
-                            className={`filter-btn ${dateRange === 'month' ? 'active' : ''}`}
-                            onClick={() => setDateRange('month')}
-                        >
-                            This Month
-                        </button>
-                        <button
-                            className={`filter-btn ${dateRange === 'custom' ? 'active' : ''}`}
-                            onClick={() => setDateRange('custom')}
-                        >
-                            Custom Range
-                        </button>
-                    </div>
+                            {/* Charts Grid */}
+                            <div className="rp-charts-grid">
+                                <div className="rp-card rp-graph-container">
+                                    <h3 className="rp-sec-title">Sales Graph</h3>
+                                    <div className="rp-graph">
+                                        <ResponsiveContainer width="100%" height={250}>
+                                            {duration === 'Today' || duration === 'Weekly' ? (
+                                                <BarChart data={salesData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                                    <XAxis dataKey="time" stroke="#888" fontSize={12} tickMargin={10} />
+                                                    <YAxis stroke="#888" fontSize={12} />
+                                                    <RechartsTooltip cursor={{ fill: '#f5f5f5' }} contentStyle={{ borderRadius: '8px' }} />
+                                                    <Bar dataKey="revenue" fill="#F4A261" radius={[4, 4, 0, 0]} />
+                                                </BarChart>
+                                            ) : (
+                                                <LineChart data={salesData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                                    <XAxis dataKey="time" stroke="#888" fontSize={12} tickMargin={10} />
+                                                    <YAxis stroke="#888" fontSize={12} />
+                                                    <RechartsTooltip contentStyle={{ borderRadius: '8px' }} />
+                                                    <Line type="monotone" dataKey="revenue" stroke="#F4A261" strokeWidth={3} dot={{ r: 4 }} />
+                                                </LineChart>
+                                            )}
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
 
-                    {dateRange === 'custom' && (
-                        <div className="custom-date-inputs">
-                            <div className="date-input">
-                                <label>Start Date</label>
-                                <input
-                                    type="date"
-                                    className="form-control"
-                                    value={customStartDate}
-                                    onChange={(e) => setCustomStartDate(e.target.value)}
-                                />
+                                <div className="rp-card rp-pie-container">
+                                    <h3 className="rp-sec-title">Top Selling Category</h3>
+                                    <div className="rp-pie">
+                                        {pieData.length > 0 ? (
+                                            <ResponsiveContainer width="100%" height={250}>
+                                                <PieChart>
+                                                    <Pie
+                                                        data={pieData}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={60}
+                                                        outerRadius={80}
+                                                        paddingAngle={5}
+                                                        dataKey="value"
+                                                    >
+                                                        {pieData.map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                        ))}
+                                                    </Pie>
+                                                    <RechartsTooltip formatter={(value) => `₹${value.toFixed(2)}`} />
+                                                    <Legend verticalAlign="bottom" height={36} />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                        ) : (
+                                            <p className="rp-empty">No category data for this period.</p>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-                            <div className="date-input">
-                                <label>End Date</label>
-                                <input
-                                    type="date"
-                                    className="form-control"
-                                    value={customEndDate}
-                                    onChange={(e) => setCustomEndDate(e.target.value)}
-                                />
+
+                            {/* Tables Array */}
+                            <div className="rp-tables-grid">
+                                <div className="rp-card rp-table-wrap rp-col-span-2">
+                                    <h3 className="rp-sec-title">Top Orders</h3>
+                                    <table className="rp-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Session</th>
+                                                <th>Total</th>
+                                                <th>Qty</th>
+                                                <th>Customer</th>
+                                                <th>Average</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {rawData?.topOrders?.length > 0 ? rawData.topOrders.map((o, i) => (
+                                                <tr key={i}>
+                                                    <td>{format(new Date(o.Date), 'MMM dd, h:mm a')}</td>
+                                                    <td>{o.Session || 'Current'}</td>
+                                                    <td>₹{Number(o.Total).toFixed(2)}</td>
+                                                    <td>{o.Qty}</td>
+                                                    <td>{o.Customer}</td>
+                                                    <td>₹{(Number(o.Total) / Math.max(o.Qty, 1)).toFixed(2)}</td>
+                                                </tr>
+                                            )) : <tr><td colSpan="6" className="rp-empty">No orders found.</td></tr>}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div className="rp-card rp-table-wrap">
+                                    <h3 className="rp-sec-title">Top Product</h3>
+                                    <table className="rp-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Product</th>
+                                                <th>Qty</th>
+                                                <th>Revenue</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {rawData?.topProduct?.length > 0 ? rawData.topProduct.map((p, i) => (
+                                                <tr key={i}>
+                                                    <td>{p.Product}</td>
+                                                    <td>{p.Qty}</td>
+                                                    <td>₹{Number(p.Revenue).toFixed(2)}</td>
+                                                </tr>
+                                            )) : <tr><td colSpan="3" className="rp-empty">No products found.</td></tr>}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                        </div>
+
+                        </>
                     )}
                 </div>
-
-                {/* Report Tabs */}
-                <div className="report-tabs">
-                    <button
-                        className={`tab-btn ${activeTab === 'sales' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('sales')}
-                    >
-                        <BarChart3 size={18} />
-                        Sales Report
-                    </button>
-                    <button
-                        className={`tab-btn ${activeTab === 'products' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('products')}
-                    >
-                        <Package size={18} />
-                        Top Products
-                    </button>
-                    <button
-                        className={`tab-btn ${activeTab === 'categories' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('categories')}
-                    >
-                        <Tag size={18} />
-                        Top Categories
-                    </button>
-                </div>
-
-                {/* Sales Report Tab */}
-                {activeTab === 'sales' && (
-                    <div className="report-content">
-                        {/* Summary Cards */}
-                        <div className="summary-cards">
-                            <div className="summary-card revenue">
-                                <div className="card-icon">
-                                    <DollarSign size={24} />
-                                </div>
-                                <div className="card-content">
-                                    <p className="card-label">Total Revenue</p>
-                                    <h3 className="card-value">₹{summaryStats.totalRevenue.toFixed(2)}</h3>
-                                </div>
-                            </div>
-
-                            <div className="summary-card orders">
-                                <div className="card-icon">
-                                    <ShoppingBag size={24} />
-                                </div>
-                                <div className="card-content">
-                                    <p className="card-label">Total Orders</p>
-                                    <h3 className="card-value">{summaryStats.totalOrders}</h3>
-                                </div>
-                            </div>
-
-                            <div className="summary-card average">
-                                <div className="card-icon">
-                                    <TrendingUp size={24} />
-                                </div>
-                                <div className="card-content">
-                                    <p className="card-label">Avg Order Value</p>
-                                    <h3 className="card-value">₹{summaryStats.avgOrderValue.toFixed(2)}</h3>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Sales Table */}
-                        {salesLoading ? (
-                            <div className="loading-container">
-                                <div className="spinner-large"></div>
-                                <p>Loading sales data...</p>
-                            </div>
-                        ) : salesData && salesData.length > 0 ? (
-                            <div className="card">
-                                <h3 className="card-title">Daily Breakdown</h3>
-                                <table className="report-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Date</th>
-                                            <th>Orders</th>
-                                            <th>Subtotal</th>
-                                            <th>Tax</th>
-                                            <th>Total Revenue</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {salesData.map((day, index) => (
-                                            <tr key={index}>
-                                                <td>
-                                                    <div className="date-cell">
-                                                        <Calendar size={16} />
-                                                        {day.date ? format(new Date(day.date), 'MMM dd, yyyy') : 'N/A'}
-                                                    </div>
-                                                </td>
-                                                <td>{day.total_orders}</td>
-                                                <td>₹{Number(day.subtotal || 0).toFixed(2)}</td>
-                                                <td>₹{Number(day.tax_amount || 0).toFixed(2)}</td>
-                                                <td className="revenue-cell">
-                                                    ₹{Number(day.total_revenue || 0).toFixed(2)}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <div className="empty-state">
-                                <BarChart3 size={48} />
-                                <p>No sales data for selected period</p>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Top Products Tab */}
-                {activeTab === 'products' && (
-                    <div className="report-content">
-                        {productsLoading ? (
-                            <div className="loading-container">
-                                <div className="spinner-large"></div>
-                                <p>Loading products data...</p>
-                            </div>
-                        ) : topProductsData && topProductsData.length > 0 ? (
-                            <div className="card">
-                                <h3 className="card-title">Top 10 Products</h3>
-                                <table className="report-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Rank</th>
-                                            <th>Product</th>
-                                            <th>Category</th>
-                                            <th>Quantity Sold</th>
-                                            <th>Times Ordered</th>
-                                            <th>Total Revenue</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {topProductsData.map((product, index) => (
-                                            <tr key={product.id}>
-                                                <td>
-                                                    <span className="rank-badge">#{index + 1}</span>
-                                                </td>
-                                                <td className="product-name">{product.name}</td>
-                                                <td>{product.category_name}</td>
-                                                <td>{product.quantity_sold} units</td>
-                                                <td>{product.times_ordered}</td>
-                                                <td className="revenue-cell">
-                                                    ₹{Number(product.total_revenue || 0).toFixed(2)}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <div className="empty-state">
-                                <Package size={48} />
-                                <p>No product data for selected period</p>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Top Categories Tab */}
-                {activeTab === 'categories' && (
-                    <div className="report-content">
-                        {categoriesLoading ? (
-                            <div className="loading-container">
-                                <div className="spinner-large"></div>
-                                <p>Loading categories data...</p>
-                            </div>
-                        ) : topCategoriesData && topCategoriesData.length > 0 ? (
-                            <div className="card">
-                                <h3 className="card-title">Category Performance</h3>
-                                <table className="report-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Category</th>
-                                            <th>Quantity Sold</th>
-                                            <th>Times Ordered</th>
-                                            <th>Total Revenue</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {topCategoriesData.map((category) => (
-                                            <tr key={category.id}>
-                                                <td>
-                                                    <div className="category-cell">
-                                                        <div
-                                                            className="color-dot"
-                                                            style={{ background: category.color }}
-                                                        ></div>
-                                                        {category.name}
-                                                    </div>
-                                                </td>
-                                                <td>{category.quantity_sold} units</td>
-                                                <td>{category.times_ordered}</td>
-                                                <td className="revenue-cell">
-                                                    ₹{Number(category.total_revenue || 0).toFixed(2)}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <div className="empty-state">
-                                <Tag size={48} />
-                                <p>No category data for selected period</p>
-                            </div>
-                        )}
-                    </div>
-                )}
             </div>
+        </div>
     );
 };
 
