@@ -7,12 +7,25 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    // Initialise from localStorage on first mount
     useEffect(() => {
         const storedUser = authService.getStoredUser();
         if (storedUser && authService.getToken()) {
             setUser(storedUser);
         }
         setLoading(false);
+    }, []);
+
+    // Listen for 401 events fired by the api.js interceptor.
+    // This clears React state WITHOUT a full page reload, letting
+    // React Router's ProtectedRoute redirect cleanly to /login.
+    useEffect(() => {
+        const handleUnauthorized = () => {
+            setUser(null);
+            authService.clearAuth();
+        };
+        window.addEventListener('auth:unauthorized', handleUnauthorized);
+        return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
     }, []);
 
     const login = async (email, password) => {
@@ -28,19 +41,18 @@ export const AuthProvider = ({ children }) => {
         return data;
     };
 
-    // Clears user state FIRST (synchronously triggers re-render of all
-    // ProtectedRoute guards), then cleans up storage & calls the API.
+    // IMPORTANT: call logoutApi() FIRST (token still exists) so the backend
+    // gets a valid authenticated request. THEN clear state and storage.
+    // Previously clearAuth() ran first → token gone → backend returned 401
+    // → interceptor fired window.location.href → full page reload bug.
     const logout = useCallback(async () => {
-        // 1. Clear React state immediately — ProtectedRoute will redirect
-        setUser(null);
-        // 2. Clear all persistent storage so refreshes also land on /login
-        authService.clearAuth();
-        // 3. Try to invalidate the token server-side (best-effort)
         try {
-            await authService.logoutApi();
+            await authService.logoutApi(); // send with token still intact
         } catch {
-            // Ignore — storage is already cleared
+            // ignore server errors — still log out locally
         }
+        setUser(null);
+        authService.clearAuth();
     }, []);
 
     const value = {
@@ -62,3 +74,4 @@ export const useAuth = () => {
     }
     return context;
 };
+

@@ -48,6 +48,9 @@ const LoginPage = () => {
 
         try {
             await login(form.email, form.password);
+            // Navigate immediately after login() resolves — token is in localStorage
+            // and setUser() has been called. The useEffect also watches isAuthenticated
+            // as a fallback for the "already logged in" case.
             navigate('/dashboard', { replace: true });
         } catch (error) {
             setErrorMsg(
@@ -58,6 +61,8 @@ const LoginPage = () => {
             setLoading(false);
         }
     };
+
+
 
     const getFieldClass = (field) => {
         if (!touched[field]) return 'input-field';
