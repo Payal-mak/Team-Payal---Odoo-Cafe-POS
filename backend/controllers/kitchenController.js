@@ -3,32 +3,53 @@ const { promisePool } = require('../config/database');
 // Get kitchen orders
 exports.getKitchenOrders = async (req, res, next) => {
     try {
-        const { kitchen_status } = req.query;
+        const { stage } = req.query;
 
         let query = `
-            SELECT 
-                oi.*,
+            SELECT
+                kt.id,
+                kt.order_id,
+                kt.status as stage,
+                kt.created_at,
                 o.order_number,
-                o.order_date,
-                t.table_number,
-                f.name as floor_name
-            FROM order_items oi
-            LEFT JOIN orders o ON oi.order_id = o.id
+                o.order_type,
+                o.notes,
+                o.table_id,
+                t.table_number as table_name,
+                JSON_ARRAYAGG(
+                    JSON_OBJECT(
+                        'id', kti.id,
+                        'product_name', kti.product_name,
+                        'quantity', kti.quantity,
+                        'status', CASE WHEN kti.prepared = 1 THEN 'ready' ELSE 'pending' END
+                    )
+                ) as items
+            FROM kitchen_tickets kt
+            JOIN orders o ON kt.order_id = o.id
             LEFT JOIN tables t ON o.table_id = t.id
-            LEFT JOIN floors f ON t.floor_id = f.id
-            WHERE o.status IN ('sent_to_kitchen', 'preparing')
+            LEFT JOIN kitchen_ticket_items kti ON kti.ticket_id = kt.id
         `;
         const queryParams = [];
 
-        if (kitchen_status) {
-            query += ' AND oi.kitchen_status = ?';
-            queryParams.push(kitchen_status);
+        if (stage) {
+            query += ' WHERE kt.status = ?';
+            queryParams.push(stage);
+        } else {
+            query += ` WHERE kt.status != 'completed' OR (kt.updated_at IS NOT NULL AND kt.updated_at >= DATE_SUB(NOW(), INTERVAL 10 MINUTE))`;
         }
 
-        query += ' ORDER BY oi.created_at ASC';
+        query += ' GROUP BY kt.id ORDER BY kt.created_at ASC';
 
-        const [items] = await promisePool.query(query, queryParams);
-        res.status(200).json({ success: true, count: items.length, data: items });
+        const [tickets] = await promisePool.query(query, queryParams);
+
+        // Parse items JSON string if needed depending on MySQL driver
+        const parsed = tickets.map(t => ({
+            ...t,
+            items: typeof t.items === 'string' ? JSON.parse(t.items) : t.items,
+            status: t.stage
+        }));
+
+        res.status(200).json({ success: true, count: parsed.length, data: parsed });
     } catch (error) {
         next(error);
     }
@@ -40,10 +61,20 @@ exports.updateKitchenOrderStatus = async (req, res, next) => {
         const { status } = req.body;
         if (!status) return res.status(400).json({ success: false, message: 'Please provide status' });
 
-        await promisePool.query('UPDATE orders SET status = ? WHERE id = ?', [status, req.params.id]);
-        const [orders] = await promisePool.query('SELECT * FROM orders WHERE id = ?', [req.params.id]);
+        await promisePool.query('UPDATE kitchen_tickets SET status = ? WHERE id = ?', [status, req.params.id]);
 
-        res.status(200).json({ success: true, message: 'Order status updated', data: orders[0] });
+        // If completed, also update the parent order status
+        if (status === 'completed') {
+            const [ticket] = await promisePool.query('SELECT order_id FROM kitchen_tickets WHERE id = ?', [req.params.id]);
+            if (ticket.length > 0) {
+                await promisePool.query(
+                    'UPDATE orders SET status = ? WHERE id = ?',
+                    ['completed', ticket[0].order_id]
+                );
+            }
+        }
+
+        res.status(200).json({ success: true, message: 'Order status updated' });
     } catch (error) {
         next(error);
     }
@@ -55,23 +86,10 @@ exports.updateKitchenItemStatus = async (req, res, next) => {
         const { status } = req.body;
         if (!status) return res.status(400).json({ success: false, message: 'Please provide status' });
 
-        await promisePool.query('UPDATE order_items SET kitchen_status = ? WHERE id = ?', [status, req.params.id]);
+        const prepared = status === 'ready' ? 1 : 0;
+        await promisePool.query('UPDATE kitchen_ticket_items SET prepared = ? WHERE id = ?', [prepared, req.params.id]);
 
-        // Check if all items are completed
-        const [item] = await promisePool.query('SELECT order_id FROM order_items WHERE id = ?', [req.params.id]);
-        const orderId = item[0].order_id;
-
-        const [allItems] = await promisePool.query(
-            'SELECT COUNT(*) as total, SUM(CASE WHEN kitchen_status = ? THEN 1 ELSE 0 END) as completed FROM order_items WHERE order_id = ?',
-            ['completed', orderId]
-        );
-
-        if (allItems[0].total === allItems[0].completed) {
-            await promisePool.query('UPDATE orders SET status = ? WHERE id = ?', ['completed', orderId]);
-        }
-
-        const [items] = await promisePool.query('SELECT * FROM order_items WHERE id = ?', [req.params.id]);
-        res.status(200).json({ success: true, message: 'Item status updated', data: items[0] });
+        res.status(200).json({ success: true, message: 'Item status updated' });
     } catch (error) {
         next(error);
     }
@@ -82,23 +100,22 @@ exports.getKitchenStats = async (req, res, next) => {
     try {
         const [stats] = await promisePool.query(`
             SELECT 
-                kitchen_status,
+                status as kitchen_status,
                 COUNT(*) as count
-            FROM order_items oi
-            LEFT JOIN orders o ON oi.order_id = o.id
-            WHERE o.status IN ('sent_to_kitchen', 'preparing')
-            GROUP BY kitchen_status
+            FROM kitchen_tickets
+            GROUP BY status
         `);
 
         const statsObj = {
-            pending: 0,
             to_cook: 0,
             preparing: 0,
             completed: 0
         };
 
         stats.forEach(stat => {
-            statsObj[stat.kitchen_status] = stat.count;
+            if (statsObj[stat.kitchen_status] !== undefined) {
+                statsObj[stat.kitchen_status] = stat.count;
+            }
         });
 
         res.status(200).json({ success: true, data: statsObj });
