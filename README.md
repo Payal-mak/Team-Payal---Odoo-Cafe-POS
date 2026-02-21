@@ -21,4 +21,4 @@ This project is proudly designed and developed by:
 - **Kirti Shingala**
 
 ---
-*Created as part of the Odoo Cafe POS development initiative.*
+
