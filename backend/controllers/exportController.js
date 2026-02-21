@@ -135,9 +135,3 @@ exports.exportSalesExcel = async (req, res, next) => {
         next(error);
     }
 };
-
-module.exports = {
-    ...require('./reportController'),
-    exportSalesPDF,
-    exportSalesExcel
-};
