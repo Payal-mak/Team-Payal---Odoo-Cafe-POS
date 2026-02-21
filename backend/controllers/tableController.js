@@ -78,7 +78,10 @@ exports.updateTable = async (req, res, next) => {
 exports.updateTableStatus = async (req, res, next) => {
     try {
         const { status } = req.body;
-        if (!status) return res.status(400).json({ success: false, message: 'Please provide status' });
+        const validStatuses = ['available', 'occupied', 'reserved'];
+        if (!status || !validStatuses.includes(status)) {
+            return res.status(400).json({ success: false, message: `Status must be one of: ${validStatuses.join(', ')}` });
+        }
 
         await promisePool.query('UPDATE tables SET status = ? WHERE id = ?', [status, req.params.id]);
         const [tables] = await promisePool.query('SELECT * FROM tables WHERE id = ?', [req.params.id]);
