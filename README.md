@@ -16,7 +16,7 @@ A complete Point of Sale (POS) system built for cafes and restaurants. It featur
 - **Real-time**: Socket.IO
 
 ## Team
-This project is proudly designed and developed by:
+This project is developed by:
 - **Payal Makwana**
 - **Kirti Shingala**
 
