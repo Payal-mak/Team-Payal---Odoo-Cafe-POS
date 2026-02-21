@@ -45,8 +45,12 @@ exports.createOrder = async (req, res, next) => {
         let taxAmount = 0;
 
         for (const item of items) {
-            const itemSubtotal = item.quantity * item.unit_price;
-            const itemTax = (itemSubtotal * item.tax_percentage) / 100;
+            const quantity = parseInt(item.quantity) || 1;
+            const unit_price = parseFloat(item.unit_price || item.price) || 0;
+            const tax_percentage = parseFloat(item.tax_percentage) || 0;
+
+            const itemSubtotal = quantity * unit_price;
+            const itemTax = (itemSubtotal * tax_percentage) / 100;
             subtotal += itemSubtotal;
             taxAmount += itemTax;
         }
@@ -63,13 +67,24 @@ exports.createOrder = async (req, res, next) => {
 
         // Create order items
         for (const item of items) {
-            const itemSubtotal = item.quantity * item.unit_price;
-            const itemTax = (itemSubtotal * (item.tax_percentage || 0)) / 100;
+            const quantity = parseInt(item.quantity) || 1;
+            const unit_price = parseFloat(item.unit_price) || 0;
+            const tax_percentage = parseFloat(item.tax_percentage) || 0;
+
+            if (isNaN(quantity) || isNaN(unit_price)) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Invalid quantity or price for item: ${item.product_name}`
+                });
+            }
+
+            const itemSubtotal = quantity * unit_price;
+            const itemTax = (itemSubtotal * tax_percentage) / 100;
             const itemTotal = itemSubtotal + itemTax;
 
             const [itemResult] = await promisePool.query(
                 'INSERT INTO order_items (order_id, product_id, product_name, quantity, unit_price, tax_amount, subtotal, total, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [orderId, item.product_id, item.product_name, item.quantity, item.unit_price, itemTax, itemSubtotal, itemTotal, item.notes]
+                [orderId, item.product_id, item.product_name, quantity, unit_price, itemTax, itemSubtotal, itemTotal, item.notes || null]
             );
 
             // Add variants if any
