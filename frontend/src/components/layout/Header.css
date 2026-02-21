@@ -1,0 +1,211 @@
+/* ===== Header ===== */
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: #1a1a2e;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+.header-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    height: 60px;
+}
+
+/* ===== Logo ===== */
+.logo {
+    text-decoration: none;
+}
+
+.logo h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #f59e0b;
+    margin: 0;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+}
+
+/* ===== Left section ===== */
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+}
+
+/* ===== Main navigation ===== */
+.main-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    position: relative;
+}
+
+.nav-item {
+    position: relative;
+}
+
+.nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 0.45rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.nav-btn:hover,
+.nav-btn.active {
+    background: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+}
+
+/* ===== Dropdown icon rotation ===== */
+.dropdown-icon {
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.dropdown-icon.rotated {
+    transform: rotate(180deg);
+}
+
+/* ===== Dropdown menu ===== */
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    min-width: 180px;
+    background: #16213e;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+    z-index: 200;
+    animation: dropdownFadeIn 0.15s ease;
+}
+
+.dropdown-menu-right {
+    left: auto;
+    right: 0;
+}
+
+@keyframes dropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 1rem;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    font-size: 0.875rem;
+    background: transparent;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.dropdown-item:hover {
+    background: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+}
+
+.dropdown-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+    margin: 0.25rem 0;
+}
+
+.logout-item {
+    color: #f87171;
+}
+
+.logout-item:hover {
+    background: rgba(248, 113, 113, 0.12);
+    color: #f87171;
+}
+
+/* ===== Right section / User menu ===== */
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+.user-menu {
+    position: relative;
+}
+
+.user-menu-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.85);
+    padding: 0.4rem 0.75rem;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.user-menu-btn:hover,
+.user-menu-btn.active {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.3);
+    color: #f59e0b;
+}
+
+/* username label inside the button */
+.user-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* user info block at top of dropdown */
+.dropdown-user-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0.6rem 1rem 0.5rem;
+}
+
+.dropdown-user-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #fff;
+}
+
+.dropdown-user-role {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: capitalize;
+}

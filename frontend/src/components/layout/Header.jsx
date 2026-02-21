@@ -13,12 +13,12 @@ const Header = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [activeDropdown, setActiveDropdown] = useState(null);
-    const dropdownRef = useRef(null);
+    const headerRef = useRef(null); // covers the ENTIRE header, not just the nav
 
-    // Close dropdown when clicking outside
+    // Close any open dropdown when clicking outside the header
     useEffect(() => {
         const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+            if (headerRef.current && !headerRef.current.contains(event.target)) {
                 setActiveDropdown(null);
             }
         };
@@ -28,20 +28,14 @@ const Header = () => {
     }, []);
 
     const handleLogout = async () => {
+        setActiveDropdown(null);
         try {
-            console.log('Logout clicked - starting logout process...');
-            setActiveDropdown(null); // Close dropdown
-            await logout();
-            console.log('Logout successful - navigating to login...');
-            navigate('/login', { replace: true });
-            window.location.href = '/login'; // Force full page reload
-        } catch (error) {
-            console.error('Logout error:', error);
-            // Force logout even if there's an error
-            localStorage.clear();
-            sessionStorage.clear();
-            window.location.href = '/login';
+            await logout(); // clears state + storage synchronously, then hits API
+        } catch {
+            // logout() already cleared storage — safe to navigate regardless
         }
+        // replace: true — back button won't return to /dashboard
+        navigate('/login', { replace: true });
     };
 
     const toggleDropdown = (menu) => {
@@ -52,7 +46,6 @@ const Header = () => {
         setActiveDropdown(null);
     };
 
-    // Menu structure as per Problem Statement
     const menuStructure = {
         orders: {
             label: 'Orders',
@@ -81,13 +74,14 @@ const Header = () => {
 
     return (
         <header className="header">
-            <div className="header-container">
+            {/* Single ref covers everything so outside-click works for all dropdowns */}
+            <div className="header-container" ref={headerRef}>
                 <div className="header-left">
                     <Link to="/dashboard" className="logo">
                         <h1>Odoo Cafe POS</h1>
                     </Link>
 
-                    <nav className="main-nav" ref={dropdownRef}>
+                    <nav className="main-nav">
                         {Object.entries(menuStructure).map(([key, menu]) => (
                             <div key={key} className="nav-item">
                                 <button
@@ -124,11 +118,21 @@ const Header = () => {
                             onClick={() => toggleDropdown('user')}
                         >
                             <User size={20} />
+                            {user?.name && (
+                                <span className="user-name">{user.name.split(' ')[0]}</span>
+                            )}
                             <ChevronDown size={16} className={`dropdown-icon ${activeDropdown === 'user' ? 'rotated' : ''}`} />
                         </button>
 
                         {activeDropdown === 'user' && (
                             <div className="dropdown-menu dropdown-menu-right">
+                                {user?.name && (
+                                    <div className="dropdown-user-info">
+                                        <span className="dropdown-user-name">{user.name}</span>
+                                        <span className="dropdown-user-role">{user.role}</span>
+                                    </div>
+                                )}
+                                <div className="dropdown-divider" />
                                 <Link to="/profile" className="dropdown-item" onClick={closeDropdown}>
                                     <User size={16} />
                                     Profile
@@ -137,8 +141,11 @@ const Header = () => {
                                     <Settings size={16} />
                                     Settings
                                 </Link>
-                                <div className="dropdown-divider"></div>
-                                <button className="dropdown-item logout-item" onClick={handleLogout}>
+                                <div className="dropdown-divider" />
+                                <button
+                                    className="dropdown-item logout-item"
+                                    onClick={handleLogout}
+                                >
                                     <LogOut size={16} />
                                     Logout
                                 </button>
@@ -152,3 +159,4 @@ const Header = () => {
 };
 
 export default Header;
+

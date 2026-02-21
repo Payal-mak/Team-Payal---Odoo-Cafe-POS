@@ -6,7 +6,6 @@ export const authService = {
         if (response.data.success) {
             localStorage.setItem('token', response.data.data.token);
             localStorage.setItem('user', JSON.stringify(response.data.data.user));
-            // Set authorization header for future requests
             api.defaults.headers.common['Authorization'] = `Bearer ${response.data.data.token}`;
         }
         return response.data;
@@ -17,26 +16,34 @@ export const authService = {
         if (response.data.success) {
             localStorage.setItem('token', response.data.data.token);
             localStorage.setItem('user', JSON.stringify(response.data.data.user));
-            // Set authorization header for future requests
             api.defaults.headers.common['Authorization'] = `Bearer ${response.data.data.token}`;
         }
         return response.data;
     },
 
-    logout: async () => {
-        try {
-            await api.post('/auth/logout');
-        } catch (error) {
-            // Continue with logout even if API call fails
-            console.error('Logout API error:', error);
-        }
-        // Clear all auth data
+    // Synchronously wipes every trace of the session from the browser.
+    // Call this BEFORE the async API hit so guards react instantly.
+    clearAuth: () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('selectedTable');
         sessionStorage.clear();
-        // Remove authorization header
         delete api.defaults.headers.common['Authorization'];
+    },
+
+    // Best-effort server-side token invalidation (fire-and-forget).
+    logoutApi: async () => {
+        await api.post('/auth/logout');
+    },
+
+    // Legacy alias — kept so any other caller still works.
+    logout: async () => {
+        authService.clearAuth();
+        try {
+            await authService.logoutApi();
+        } catch {
+            // ignore
+        }
     },
 
     getCurrentUser: async () => {
@@ -57,3 +64,4 @@ export const authService = {
         return !!localStorage.getItem('token');
     }
 };
+

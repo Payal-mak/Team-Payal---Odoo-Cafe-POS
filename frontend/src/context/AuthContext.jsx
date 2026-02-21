@@ -1,4 +1,4 @@
-import { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { authService } from '../services/authService';
 
 const AuthContext = createContext(null);
@@ -9,7 +9,7 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         const storedUser = authService.getStoredUser();
-        if (storedUser) {
+        if (storedUser && authService.getToken()) {
             setUser(storedUser);
         }
         setLoading(false);
@@ -28,10 +28,20 @@ export const AuthProvider = ({ children }) => {
         return data;
     };
 
-    const logout = async () => {
-        await authService.logout();
+    // Clears user state FIRST (synchronously triggers re-render of all
+    // ProtectedRoute guards), then cleans up storage & calls the API.
+    const logout = useCallback(async () => {
+        // 1. Clear React state immediately — ProtectedRoute will redirect
         setUser(null);
-    };
+        // 2. Clear all persistent storage so refreshes also land on /login
+        authService.clearAuth();
+        // 3. Try to invalidate the token server-side (best-effort)
+        try {
+            await authService.logoutApi();
+        } catch {
+            // Ignore — storage is already cleared
+        }
+    }, []);
 
     const value = {
         user,
@@ -39,7 +49,7 @@ export const AuthProvider = ({ children }) => {
         register,
         logout,
         loading,
-        isAuthenticated: !!user
+        isAuthenticated: !!user,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

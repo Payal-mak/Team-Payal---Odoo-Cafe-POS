@@ -5,6 +5,7 @@ import Layout from './components/layout/Layout';
 
 // Pages
 import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
 import DashboardPage from './pages/DashboardPage';
 import FloorPage from './pages/FloorPage';
 import RegisterPage from './pages/RegisterPage';
@@ -24,6 +25,10 @@ function App() {
             <Route
                 path="/login"
                 element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />}
+            />
+            <Route
+                path="/signup"
+                element={user ? <Navigate to="/dashboard" replace /> : <SignupPage />}
             />
 
             {/* Protected routes with Layout */}
