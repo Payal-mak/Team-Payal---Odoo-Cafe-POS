@@ -15,6 +15,9 @@ import OrdersPage from './pages/OrdersPage';
 import CustomersPage from './pages/CustomersPage';
 import ReportsPage from './pages/ReportsPage';
 import CustomerDisplayPage from './pages/CustomerDisplayPage';
+import SettingsPage from './pages/SettingsPage';
+import OrderDetailPage from './pages/OrderDetailPage';
+import PaymentsPage from './pages/PaymentsPage';
 
 function App() {
     const { user } = useAuth();
@@ -69,7 +72,7 @@ function App() {
                     path="/settings"
                     element={
                         <ProtectedRoute allowedRoles={['admin']}>
-                            <FloorPage />
+                            <SettingsPage />
                         </ProtectedRoute>
                     }
                 />
@@ -77,7 +80,7 @@ function App() {
                     path="/settings/:configId"
                     element={
                         <ProtectedRoute allowedRoles={['admin']}>
-                            <FloorPage />
+                            <SettingsPage />
                         </ProtectedRoute>
                     }
                 />
@@ -102,6 +105,22 @@ function App() {
                     element={
                         <ProtectedRoute>
                             <OrdersPage />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/orders/:orderId"
+                    element={
+                        <ProtectedRoute>
+                            <OrderDetailPage />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/payments"
+                    element={
+                        <ProtectedRoute>
+                            <PaymentsPage />
                         </ProtectedRoute>
                     }
                 />

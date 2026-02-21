@@ -1,0 +1,366 @@
+/* ============================================================
+   ORDER DETAIL PAGE — terracotta palette
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+.order-detail-page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 1.75rem 4rem;
+    font-family: 'Inter', sans-serif;
+}
+
+/* ── Loading / error states ───────────────────────────────── */
+.od-loading,
+.od-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    min-height: 60vh;
+    color: var(--text-secondary, #888);
+    text-align: center;
+}
+
+.od-loading {
+    color: #B17457;
+}
+
+.od-error svg {
+    opacity: 0.4;
+    color: #B17457;
+}
+
+.od-error p {
+    font-weight: 600;
+    font-size: 1rem;
+    margin: 0;
+}
+
+.od-back-btn {
+    margin-top: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    background: #B17457;
+    color: #FAF7F0;
+    border: none;
+    border-radius: 9px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+/* ── Header ───────────────────────────────────────────────── */
+.od-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+    flex-wrap: wrap;
+}
+
+.od-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+}
+
+.od-back {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1.5px solid var(--border, #e5e7eb);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-secondary, #666);
+    flex-shrink: 0;
+    transition: border-color 0.18s, color 0.18s;
+}
+
+.od-back:hover {
+    border-color: #B17457;
+    color: #B17457;
+}
+
+.od-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+    margin: 0 0 0.2rem;
+}
+
+.od-subtitle {
+    font-size: 0.82rem;
+    color: var(--text-secondary, #888);
+    margin: 0;
+}
+
+/* Status pill in header */
+.od-badge {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.9rem;
+}
+
+/* ── Info grid ────────────────────────────────────────────── */
+.od-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+}
+
+.od-info-card {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 1rem 1.25rem;
+    background: var(--bg-card, #fff);
+    border: 1.5px solid var(--border, #e5e7eb);
+    border-radius: 12px;
+}
+
+.od-info-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(177, 116, 87, .1);
+    color: #B17457;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.od-info-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-secondary, #888);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin: 0 0 0.2rem;
+}
+
+.od-info-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+    margin: 0;
+}
+
+/* ── Tabs ─────────────────────────────────────────────────── */
+.od-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--border, #e5e7eb);
+    margin-bottom: 1.25rem;
+}
+
+.od-tab {
+    padding: 0.65rem 1.4rem;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary, #888);
+    cursor: pointer;
+    font-family: inherit;
+    transition: color 0.18s, border-color 0.18s;
+}
+
+.od-tab:hover {
+    color: #B17457;
+}
+
+.od-tab.active {
+    color: #B17457;
+    border-bottom-color: #B17457;
+    font-weight: 700;
+}
+
+/* ── Card wrapper ─────────────────────────────────────────── */
+.od-card {
+    background: var(--bg-card, #fff);
+    border: 1.5px solid var(--border, #e5e7eb);
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+/* ── Products table ───────────────────────────────────────── */
+.od-table-wrap {
+    overflow-x: auto;
+}
+
+.od-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    min-width: 600px;
+}
+
+.od-table thead {
+    background: rgba(177, 116, 87, .06);
+}
+
+.od-table th {
+    padding: 0.85rem 1.1rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-secondary, #888);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.od-table th.num,
+.od-table td.num {
+    text-align: right;
+}
+
+.od-table tbody tr {
+    transition: background 0.12s;
+}
+
+.od-table tbody tr:hover {
+    background: rgba(177, 116, 87, .03);
+}
+
+.od-table td {
+    padding: 0.85rem 1.1rem;
+    border-bottom: 1px solid var(--border, #f3f4f6);
+    color: var(--text-primary, #333);
+    vertical-align: middle;
+}
+
+.od-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.item-name {
+    font-weight: 500;
+}
+
+.total-col {
+    font-weight: 700;
+    color: #B17457;
+}
+
+.empty-row {
+    text-align: center;
+    color: var(--text-secondary, #aaa);
+    padding: 2rem !important;
+}
+
+/* ── Totals footer ───────────────────────────────────────── */
+.od-totals {
+    padding: 1rem 1.4rem;
+    border-top: 1.5px solid var(--border, #e5e7eb);
+    background: rgba(177, 116, 87, .03);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    align-items: flex-end;
+}
+
+.od-total-row {
+    display: flex;
+    gap: 3rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary, #666);
+}
+
+.od-total-row span:last-child {
+    min-width: 96px;
+    text-align: right;
+}
+
+.od-total-row.grand {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+    border-top: 1.5px solid var(--border, #e5e7eb);
+    padding-top: 0.4rem;
+    margin-top: 0.1rem;
+}
+
+/* ── No extras / notes ───────────────────────────────────── */
+.od-no-extra {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 2.5rem;
+    color: var(--text-secondary, #aaa);
+    text-align: center;
+}
+
+.od-no-extra svg {
+    opacity: 0.35;
+    color: #B17457;
+}
+
+.od-no-extra p {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+.od-no-extra span {
+    font-size: 0.82rem;
+}
+
+.od-notes {
+    padding: 0.85rem 1.25rem;
+    border-top: 1px solid var(--border, #e5e7eb);
+}
+
+.od-notes-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-secondary, #888);
+    margin: 0 0 0.25rem;
+}
+
+.od-notes-value {
+    font-size: 0.875rem;
+    color: var(--text-primary, #333);
+    margin: 0;
+}
+
+/* ── Spinner ─────────────────────────────────────────────── */
+.spin {
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .order-detail-page {
+        padding: 1.25rem 1rem 2.5rem;
+    }
+
+    .od-title {
+        font-size: 1.15rem;
+    }
+
+    .od-info-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
