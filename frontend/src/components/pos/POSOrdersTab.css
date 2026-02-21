@@ -1,0 +1,103 @@
+.pos-orders-tab {
+    padding: 24px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.pos-orders-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-secondary);
+}
+
+.pos-orders-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.pos-orders-header h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.pos-orders-search {
+    display: flex;
+    align-items: center;
+    background: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    width: 300px;
+}
+
+.pos-orders-search input {
+    border: none;
+    outline: none;
+    margin-left: 12px;
+    width: 100%;
+    font-size: 14px;
+}
+
+.pos-orders-content {
+    flex: 1;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    overflow-y: auto;
+}
+
+.pos-orders-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.pos-orders-table th {
+    background: #f8f9fa;
+    padding: 16px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+}
+
+.pos-orders-table td {
+    padding: 16px;
+    border-bottom: 1px solid #f1f3f5;
+    color: var(--text-primary);
+}
+
+.pos-orders-table tr:last-child td {
+    border-bottom: none;
+}
+
+.pos-orders-table tr:hover td {
+    background: #f8f9fa;
+}
+
+.fw-bold {
+    font-weight: 600;
+}
+
+.pos-orders-empty {
+    text-align: center;
+    padding: 48px !important;
+    color: #999 !important;
+}
+
+.pos-order-badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    display: inline-block;
+}
