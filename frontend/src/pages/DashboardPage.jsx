@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -14,294 +15,329 @@ import {
     MoreVertical,
     Settings,
     ChefHat,
-    Tv
+    Tv,
+    RefreshCw,
+    Loader2,
+    Zap
 } from 'lucide-react';
 import { format } from 'date-fns';
 import './DashboardPage.css';
 
+/* ── Three-dot menu — closes on outside click ─────────────── */
+const TerminalMenu = ({ terminal, onNavigate }) => {
+    const [open, setOpen] = useState(false);
+    const menuRef = useRef(null);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const handler = (e) => {
+            if (menuRef.current && !menuRef.current.contains(e.target)) setOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    const go = (path) => { setOpen(false); navigate(path); };
+
+    return (
+        <div className="terminal-menu" ref={menuRef}>
+            <button className="menu-btn" onClick={() => setOpen(v => !v)} aria-label="Terminal options">
+                <MoreVertical size={18} />
+            </button>
+            {open && (
+                <div className="terminal-dropdown">
+                    <button className="td-item" onClick={() => go(`/settings/${terminal.id}`)}>
+                        <Settings size={15} /> Settings
+                    </button>
+                    <button className="td-item" onClick={() => go('/kitchen')}>
+                        <ChefHat size={15} /> Kitchen Display
+                    </button>
+                    <button className="td-item" onClick={() => go('/customer-display')}>
+                        <Tv size={15} /> Customer Display
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+/* ── Terminal card ────────────────────────────────────────── */
+const TerminalCard = ({ terminal, session, onOpenSession, opening }) => {
+    const navigate = useNavigate();
+    const hasSession = !!session;
+
+    const handleSessionBtn = async () => {
+        if (hasSession) {
+            // Resume — just navigate to POS
+            navigate('/pos');
+        } else {
+            // Open new session
+            await onOpenSession(terminal.id);
+        }
+    };
+
+    return (
+        <div className={`terminal-card ${hasSession ? 'active' : ''}`}>
+            {/* Header row */}
+            <div className="tc-header">
+                <div className="tc-info">
+                    <h3 className="tc-name">{terminal.name}</h3>
+                    <p className="tc-location">{terminal.location || 'Main Floor'}</p>
+                </div>
+                <div className="tc-header-right">
+                    <span className={`tc-status ${hasSession ? 'active' : 'inactive'}`}>
+                        {hasSession ? 'Active' : 'Inactive'}
+                    </span>
+                    <TerminalMenu terminal={terminal} />
+                </div>
+            </div>
+
+            {/* Session details */}
+            <div className="tc-details">
+                <div className="tc-detail-row">
+                    <Clock size={14} />
+                    <span>
+                        Last opened: {
+                            session?.start_time
+                                ? format(new Date(session.start_time), 'dd MMM, h:mm a')
+                                : terminal.last_opened
+                                    ? format(new Date(terminal.last_opened), 'dd MMM, h:mm a')
+                                    : 'N/A'
+                        }
+                    </span>
+                </div>
+                <div className="tc-detail-row">
+                    <DollarSign size={14} />
+                    <span>
+                        Last sell: ₹{Number(
+                            session?.total_sales ??
+                            terminal.last_sell_amount ??
+                            0
+                        ).toFixed(2)}
+                    </span>
+                </div>
+            </div>
+
+            {/* Action button */}
+            <button
+                className={`tc-btn ${hasSession ? 'resume' : 'open'}`}
+                onClick={handleSessionBtn}
+                disabled={opening}
+            >
+                {opening ? (
+                    <><Loader2 size={16} className="spin" /> Opening…</>
+                ) : hasSession ? (
+                    <><RefreshCw size={16} /> Resume Session</>
+                ) : (
+                    <><Play size={16} /> Open Session</>
+                )}
+            </button>
+        </div>
+    );
+};
+
+/* ── Stat card ────────────────────────────────────────────── */
+const StatCard = ({ icon: Icon, label, value, meta, colorClass }) => (
+    <div className={`stat-card ${colorClass}`}>
+        <div className="stat-icon">
+            <Icon size={22} />
+        </div>
+        <div className="stat-content">
+            <p className="stat-label">{label}</p>
+            <h3 className="stat-value">{value}</h3>
+            <p className="stat-meta">{meta}</p>
+        </div>
+    </div>
+);
+
+/* ── Dashboard page ───────────────────────────────────────── */
 const DashboardPage = () => {
     const queryClient = useQueryClient();
-    const [openingSession, setOpeningSession] = useState(null);
-    const [activeTerminalMenu, setActiveTerminalMenu] = useState(null);
+    const navigate = useNavigate();
+    const [openingId, setOpeningId] = useState(null);
 
-    // Fetch dashboard statistics
+
+    /* Stats */
     const { data: stats, isLoading: statsLoading } = useQuery({
         queryKey: ['dashboard-stats'],
         queryFn: async () => {
-            const response = await api.get('/reports/dashboard');
-            return response.data.data;
+            const r = await api.get('/reports/dashboard');
+            return r.data.data;
         },
-        refetchInterval: 30000, // Refresh every 30 seconds
+        refetchInterval: 30000,
     });
 
-    // Fetch POS terminals
-    const { data: terminalsData, isLoading: terminalsLoading } = useQuery({
+    /* Terminals (GET /terminals — backend calls them POS configs) */
+    const { data: terminals = [], isLoading: terminalsLoading } = useQuery({
         queryKey: ['terminals'],
         queryFn: async () => {
-            const response = await api.get('/terminals');
-            return response.data.data;
+            const r = await api.get('/terminals');
+            return r.data.data ?? [];
         }
     });
 
-    // Fetch active sessions
-    const { data: sessionsData } = useQuery({
+    /* Active sessions */
+    const { data: sessions = [] } = useQuery({
         queryKey: ['active-sessions'],
         queryFn: async () => {
-            const response = await api.get('/sessions/active');
-            return response.data.data;
+            const r = await api.get('/sessions/active');
+            return r.data.data ?? [];
         }
     });
 
-    // Open session mutation
-    const openSessionMutation = useMutation({
+    /* Open session mutation */
+    const openSessionMut = useMutation({
         mutationFn: async (terminalId) => {
-            const response = await api.post('/sessions/open', {
+            const r = await api.post('/sessions/open', {
                 terminal_id: terminalId,
                 opening_balance: 0
             });
-            return response.data;
+            return r.data;
         },
-        onSuccess: (data) => {
-            toast.success('Session opened successfully!');
+        onSuccess: () => {
+            toast.success('Session opened!');
             queryClient.invalidateQueries(['active-sessions']);
             queryClient.invalidateQueries(['dashboard-stats']);
-            setOpeningSession(null);
+            setOpeningId(null);
+            navigate('/pos');
         },
-        onError: (error) => {
-            toast.error(error.response?.data?.message || 'Failed to open session');
-            setOpeningSession(null);
+
+        onError: (err) => {
+            toast.error(err.response?.data?.message || 'Failed to open session');
+            setOpeningId(null);
         }
     });
 
     const handleOpenSession = (terminalId) => {
-        setOpeningSession(terminalId);
-        openSessionMutation.mutate(terminalId);
+        setOpeningId(terminalId);
+        openSessionMut.mutate(terminalId);
     };
 
-    const getTerminalSession = (terminalId) => {
-        return sessionsData?.find(session => session.terminal_id === terminalId);
-    };
+    const getSession = (terminalId) =>
+        sessions.find(s => s.terminal_id === terminalId);
 
-    if (statsLoading || terminalsLoading) {
+    const isLoading = statsLoading || terminalsLoading;
+
+    if (isLoading) {
         return (
-            <div className="loading-container">
-                <div className="spinner-large"></div>
-                <p>Loading dashboard...</p>
+            <div className="db-loading">
+                <Loader2 className="spin" size={40} />
+                <p>Loading dashboard…</p>
             </div>
         );
     }
 
     return (
         <div className="dashboard">
-            <div className="dashboard-header">
+
+            {/* Page header */}
+            <div className="db-header">
                 <div>
-                    <h1>Dashboard</h1>
-                    <p className="dashboard-subtitle">
-                        <Calendar size={16} />
+                    <h1 className="db-title">Dashboard</h1>
+                    <p className="db-subtitle">
+                        <Calendar size={15} />
                         {format(new Date(), 'EEEE, MMMM d, yyyy')}
                     </p>
                 </div>
+                <button
+                    className="db-refresh-btn"
+                    onClick={() => {
+                        queryClient.invalidateQueries();
+                        toast.success('Refreshed');
+                    }}
+                >
+                    <RefreshCw size={16} /> Refresh
+                </button>
             </div>
 
-            {/* Statistics Cards */}
+            {/* Stats grid */}
             <div className="stats-grid">
-                <div className="stat-card revenue">
-                    <div className="stat-icon">
-                        <DollarSign size={24} />
-                    </div>
-                    <div className="stat-content">
-                        <p className="stat-label">Today's Revenue</p>
-                        <h3 className="stat-value">
-                            ₹{Number(stats?.today_sales?.total_revenue || 0).toFixed(2)}
-                        </h3>
-                        <p className="stat-meta">
-                            <TrendingUp size={14} />
-                            {stats?.today_sales?.total_orders || 0} orders
-                        </p>
-                    </div>
-                </div>
-
-                <div className="stat-card orders">
-                    <div className="stat-icon">
-                        <ShoppingBag size={24} />
-                    </div>
-                    <div className="stat-content">
-                        <p className="stat-label">Active Orders</p>
-                        <h3 className="stat-value">{stats?.active_orders || 0}</h3>
-                        <p className="stat-meta">In progress</p>
-                    </div>
-                </div>
-
-                <div className="stat-card tables">
-                    <div className="stat-icon">
-                        <Users size={24} />
-                    </div>
-                    <div className="stat-content">
-                        <p className="stat-label">Tables Occupied</p>
-                        <h3 className="stat-value">
-                            {stats?.occupied_tables || 0}/{stats?.total_tables || 0}
-                        </h3>
-                        <p className="stat-meta">
-                            {stats?.total_tables ?
-                                Math.round((stats.occupied_tables / stats.total_tables) * 100) : 0}% occupancy
-                        </p>
-                    </div>
-                </div>
-
-                <div className="stat-card sessions">
-                    <div className="stat-icon">
-                        <Monitor size={24} />
-                    </div>
-                    <div className="stat-content">
-                        <p className="stat-label">Active Sessions</p>
-                        <h3 className="stat-value">{stats?.active_sessions || 0}</h3>
-                        <p className="stat-meta">POS terminals</p>
-                    </div>
-                </div>
+                <StatCard
+                    icon={DollarSign}
+                    label="Today's Revenue"
+                    value={`₹${Number(stats?.today_sales?.total_revenue || 0).toFixed(2)}`}
+                    meta={<><TrendingUp size={13} /> {stats?.today_sales?.total_orders || 0} orders</>}
+                    colorClass="revenue"
+                />
+                <StatCard
+                    icon={ShoppingBag}
+                    label="Active Orders"
+                    value={stats?.active_orders ?? 0}
+                    meta="In progress"
+                    colorClass="orders"
+                />
+                <StatCard
+                    icon={Users}
+                    label="Tables Occupied"
+                    value={`${stats?.occupied_tables ?? 0}/${stats?.total_tables ?? 0}`}
+                    meta={`${stats?.total_tables
+                        ? Math.round((stats.occupied_tables / stats.total_tables) * 100)
+                        : 0}% occupancy`}
+                    colorClass="tables"
+                />
+                <StatCard
+                    icon={Monitor}
+                    label="Active Sessions"
+                    value={stats?.active_sessions ?? 0}
+                    meta="POS terminals"
+                    colorClass="sessions"
+                />
             </div>
 
             {/* POS Terminals */}
-            <div className="dashboard-section">
-                <div className="section-header">
-                    <h2>POS Terminals</h2>
-                    <p>Manage your point of sale terminals and sessions</p>
+            <div className="db-section">
+                <div className="db-section-header">
+                    <div>
+                        <h2><Zap size={18} /> POS Terminals</h2>
+                        <p>Manage your point of sale terminals and sessions</p>
+                    </div>
                 </div>
 
                 <div className="terminals-grid">
-                    {terminalsData && terminalsData.length > 0 ? (
-                        terminalsData.map((terminal) => {
-                            const session = getTerminalSession(terminal.id);
-                            const isActive = !!session;
-
-                            return (
-                                <div key={terminal.id} className={`terminal-card ${isActive ? 'active' : ''}`}>
-                                    <div className="terminal-header">
-                                        <div className="terminal-info">
-                                            <h3>{terminal.name}</h3>
-                                            <p className="terminal-location">{terminal.location || 'Main Floor'}</p>
-                                        </div>
-                                        <div className="terminal-header-actions">
-                                            <div className={`terminal-status ${isActive ? 'active' : 'inactive'}`}>
-                                                {isActive ? 'Active' : 'Inactive'}
-                                            </div>
-                                            <div className="terminal-menu">
-                                                <button
-                                                    className="menu-btn"
-                                                    onClick={() => setActiveTerminalMenu(activeTerminalMenu === terminal.id ? null : terminal.id)}
-                                                >
-                                                    <MoreVertical size={20} />
-                                                </button>
-                                                {activeTerminalMenu === terminal.id && (
-                                                    <div className="terminal-dropdown">
-                                                        <button
-                                                            className="dropdown-item"
-                                                            onClick={() => {
-                                                                window.location.href = '/products';
-                                                                setActiveTerminalMenu(null);
-                                                            }}
-                                                        >
-                                                            <Settings size={16} />
-                                                            Settings
-                                                        </button>
-                                                        <button
-                                                            className="dropdown-item"
-                                                            onClick={() => {
-                                                                window.location.href = '/kitchen';
-                                                                setActiveTerminalMenu(null);
-                                                            }}
-                                                        >
-                                                            <ChefHat size={16} />
-                                                            Kitchen Display
-                                                        </button>
-                                                        <button
-                                                            className="dropdown-item"
-                                                            onClick={() => {
-                                                                window.location.href = '/customer-display';
-                                                                setActiveTerminalMenu(null);
-                                                            }}
-                                                        >
-                                                            <Tv size={16} />
-                                                            Customer Display
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {isActive && session ? (
-                                        <div className="session-info">
-                                            <div className="session-detail">
-                                                <Clock size={16} />
-                                                <span>
-                                                    Opened: {session.start_time ? format(new Date(session.start_time), 'h:mm a') : 'N/A'}
-                                                </span>
-                                            </div>
-                                            <div className="session-detail">
-                                                <DollarSign size={16} />
-                                                <span>Balance: ₹{Number(session.opening_balance || 0).toFixed(2)}</span>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="terminal-actions">
-                                            <button
-                                                className="btn btn-primary"
-                                                onClick={() => handleOpenSession(terminal.id)}
-                                                disabled={openingSession === terminal.id}
-                                            >
-                                                {openingSession === terminal.id ? (
-                                                    <>
-                                                        <span className="spinner"></span>
-                                                        Opening...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Play size={18} />
-                                                        Open Session
-                                                    </>
-                                                )}
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })
-                    ) : (
+                    {terminals.length > 0 ? terminals.map(terminal => (
+                        <TerminalCard
+                            key={terminal.id}
+                            terminal={terminal}
+                            session={getSession(terminal.id)}
+                            onOpenSession={handleOpenSession}
+                            opening={openingId === terminal.id}
+                        />
+                    )) : (
                         <div className="empty-state">
                             <Monitor size={48} />
                             <p>No POS terminals configured</p>
+                            <span>Ask your admin to add terminals</span>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Top Selling Products */}
-            {stats?.top_products && stats.top_products.length > 0 && (
-                <div className="dashboard-section">
-                    <div className="section-header">
-                        <h2>Top Selling Products Today</h2>
-                        <p>Best performing items</p>
+            {/* Top products table (when data available) */}
+            {stats?.top_products?.length > 0 && (
+                <div className="db-section">
+                    <div className="db-section-header">
+                        <div>
+                            <h2>Top Selling Products Today</h2>
+                            <p>Best performing items</p>
+                        </div>
                     </div>
-                    <div className="card">
+                    <div className="db-card">
                         <table className="products-table">
                             <thead>
                                 <tr>
+                                    <th>#</th>
                                     <th>Product</th>
-                                    <th>Quantity Sold</th>
+                                    <th>Qty Sold</th>
                                     <th>Revenue</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {stats.top_products.map((product, index) => (
-                                    <tr key={index}>
-                                        <td>
-                                            <div className="product-cell">
-                                                <span className="product-rank">#{index + 1}</span>
-                                                {product.name}
-                                            </div>
-                                        </td>
-                                        <td>{product.quantity_sold} units</td>
-                                        <td className="revenue-cell">₹{Number(product.revenue || 0).toFixed(2)}</td>
+                                {stats.top_products.map((p, i) => (
+                                    <tr key={i}>
+                                        <td><span className="rank-badge">#{i + 1}</span></td>
+                                        <td>{p.name}</td>
+                                        <td>{p.quantity_sold} units</td>
+                                        <td className="revenue-cell">₹{Number(p.revenue || 0).toFixed(2)}</td>
                                     </tr>
                                 ))}
                             </tbody>

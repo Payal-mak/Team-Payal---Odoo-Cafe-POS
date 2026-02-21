@@ -58,6 +58,30 @@ function App() {
                     }
                 />
                 <Route
+                    path="/pos"
+                    element={
+                        <ProtectedRoute>
+                            <FloorPage />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/settings"
+                    element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                            <FloorPage />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/settings/:configId"
+                    element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                            <FloorPage />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
                     path="/kitchen"
                     element={
                         <ProtectedRoute allowedRoles={['admin', 'kitchen_staff']}>

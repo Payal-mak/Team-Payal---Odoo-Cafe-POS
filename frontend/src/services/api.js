@@ -28,12 +28,17 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
+            // Clear storage so any stale token is gone
             localStorage.removeItem('token');
             localStorage.removeItem('user');
-            window.location.href = '/login';
+            // Dispatch a custom event — AuthContext listens for this and calls
+            // setUser(null), which lets ProtectedRoute redirect via React Router
+            // WITHOUT a full page reload (window.location.href caused the "refresh" bug).
+            window.dispatchEvent(new CustomEvent('auth:unauthorized'));
         }
         return Promise.reject(error);
     }
 );
+
 
 export default api;

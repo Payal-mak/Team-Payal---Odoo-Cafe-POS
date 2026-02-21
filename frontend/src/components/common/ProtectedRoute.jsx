@@ -1,19 +1,24 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     const { user, loading } = useAuth();
 
+    // While the auth context is still initialising from localStorage,
+    // render nothing — do NOT redirect — to avoid a race-condition flash.
     if (loading) {
         return (
             <div style={{
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
-                height: '100vh'
+                height: '100vh',
+                background: '#4A4947',
+                color: '#B17457',
+                fontSize: '1rem',
+                fontFamily: 'Inter, sans-serif'
             }}>
-                <div>Loading...</div>
+                Loading…
             </div>
         );
     }
@@ -30,3 +35,4 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 };
 
 export default ProtectedRoute;
+
