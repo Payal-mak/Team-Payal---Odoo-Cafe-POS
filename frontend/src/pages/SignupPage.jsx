@@ -8,7 +8,7 @@ const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 const SignupPage = () => {
     const navigate = useNavigate();
-    const { register, isAuthenticated, loading: authLoading } = useAuth();
+    const { register, isAuthenticated, loading: authLoading, user } = useAuth();
 
     const [form, setForm] = useState({ name: '', email: '', password: '' });
     const [touched, setTouched] = useState({ name: false, email: false, password: false });
@@ -18,10 +18,11 @@ const SignupPage = () => {
 
     // Redirect if already logged in
     useEffect(() => {
-        if (!authLoading && isAuthenticated) {
-            navigate('/dashboard', { replace: true });
+        if (!authLoading && isAuthenticated && user) {
+            const redirectPath = user.role === 'kitchen_staff' ? '/kitchen' : '/dashboard';
+            navigate(redirectPath, { replace: true });
         }
-    }, [isAuthenticated, authLoading, navigate]);
+    }, [isAuthenticated, authLoading, navigate, user]);
 
     const errors = {
         name: form.name.trim().length === 0 ? 'Name is required' : '',
@@ -48,8 +49,10 @@ const SignupPage = () => {
         setErrorMsg('');
 
         try {
-            await register(form.name.trim(), form.email, form.password);
-            navigate('/dashboard', { replace: true });
+            const res = await register(form.name.trim(), form.email, form.password);
+            const registeredUser = res.data?.user || res.data;
+            const redirectPath = registeredUser?.role === 'kitchen_staff' ? '/kitchen' : '/dashboard';
+            navigate(redirectPath, { replace: true });
         } catch (error) {
             setErrorMsg(
                 error.response?.data?.message || 'Sign up failed. Please try again.'

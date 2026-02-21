@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
     ChevronDown,
@@ -60,14 +60,14 @@ const Header = () => {
             label: 'Products',
             items: [
                 { label: 'All Products', path: '/products' },
-                { label: 'Categories', path: '/products' },
+                { label: 'Categories', path: '/categories' },
             ]
         },
         reporting: {
             label: 'Reporting',
             items: [
-                { label: 'Sales Report', path: '/reporting' },
-                { label: 'Product Report', path: '/reporting' },
+                { label: 'Sales Report', path: '/reports' },
+                { label: 'Product Report', path: '/reports' },
             ]
         }
     };
@@ -95,14 +95,15 @@ const Header = () => {
                                 {activeDropdown === key && (
                                     <div className="dropdown-menu">
                                         {menu.items.map((item, index) => (
-                                            <Link
+                                            <NavLink
                                                 key={index}
                                                 to={item.path}
-                                                className="dropdown-item"
+                                                className={({ isActive }) => (isActive ? 'dropdown-item active' : 'dropdown-item')}
+                                                onMouseDown={(e) => e.stopPropagation()}
                                                 onClick={closeDropdown}
                                             >
                                                 {item.label}
-                                            </Link>
+                                            </NavLink>
                                         ))}
                                     </div>
                                 )}
@@ -133,11 +134,11 @@ const Header = () => {
                                     </div>
                                 )}
                                 <div className="dropdown-divider" />
-                                <Link to="/profile" className="dropdown-item" onClick={closeDropdown}>
+                                <Link to="/profile" className="dropdown-item" onMouseDown={(e) => e.stopPropagation()} onClick={closeDropdown}>
                                     <User size={16} />
                                     Profile
                                 </Link>
-                                <Link to="/settings" className="dropdown-item" onClick={closeDropdown}>
+                                <Link to="/settings" className="dropdown-item" onMouseDown={(e) => e.stopPropagation()} onClick={closeDropdown}>
                                     <Settings size={16} />
                                     Settings
                                 </Link>

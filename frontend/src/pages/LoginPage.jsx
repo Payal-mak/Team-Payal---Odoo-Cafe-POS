@@ -8,7 +8,7 @@ const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 const LoginPage = () => {
     const navigate = useNavigate();
-    const { login, isAuthenticated, loading: authLoading } = useAuth();
+    const { login, isAuthenticated, loading: authLoading, user } = useAuth();
 
     const [form, setForm] = useState({ email: '', password: '' });
     const [touched, setTouched] = useState({ email: false, password: false });
@@ -18,10 +18,11 @@ const LoginPage = () => {
 
     // Redirect if already logged in
     useEffect(() => {
-        if (!authLoading && isAuthenticated) {
-            navigate('/dashboard', { replace: true });
+        if (!authLoading && isAuthenticated && user) {
+            const redirectPath = user.role === 'kitchen_staff' ? '/kitchen' : '/dashboard';
+            navigate(redirectPath, { replace: true });
         }
-    }, [isAuthenticated, authLoading, navigate]);
+    }, [isAuthenticated, authLoading, navigate, user]);
 
     const errors = {
         email: !validateEmail(form.email) ? 'Please enter a valid email address' : '',
@@ -47,11 +48,10 @@ const LoginPage = () => {
         setErrorMsg('');
 
         try {
-            await login(form.email, form.password);
-            // Navigate immediately after login() resolves — token is in localStorage
-            // and setUser() has been called. The useEffect also watches isAuthenticated
-            // as a fallback for the "already logged in" case.
-            navigate('/dashboard', { replace: true });
+            const res = await login(form.email, form.password);
+            const loggedInUser = res.data?.user || res.data;
+            const redirectPath = loggedInUser?.role === 'kitchen_staff' ? '/kitchen' : '/dashboard';
+            navigate(redirectPath, { replace: true });
         } catch (error) {
             setErrorMsg(
                 error.response?.data?.message || 'Invalid email or password. Please try again.'

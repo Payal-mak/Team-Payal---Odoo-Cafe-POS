@@ -12,12 +12,15 @@ import RegisterPage from './pages/RegisterPage';
 import KitchenPage from './pages/KitchenPage';
 import ProductsPage from './pages/ProductsPage';
 import OrdersPage from './pages/OrdersPage';
+import POSPage from './pages/POSPage';
 import CustomersPage from './pages/CustomersPage';
 import ReportsPage from './pages/ReportsPage';
 import CustomerDisplayPage from './pages/CustomerDisplayPage';
 import SettingsPage from './pages/SettingsPage';
 import OrderDetailPage from './pages/OrderDetailPage';
 import PaymentsPage from './pages/PaymentsPage';
+import ProductFormPage from './pages/ProductFormPage';
+import CategoriesPage from './pages/CategoriesPage';
 
 function App() {
     const { user } = useAuth();
@@ -63,8 +66,8 @@ function App() {
                 <Route
                     path="/pos"
                     element={
-                        <ProtectedRoute>
-                            <FloorPage />
+                        <ProtectedRoute allowedRoles={['admin', 'cashier']}>
+                            <POSPage />
                         </ProtectedRoute>
                     }
                 />
@@ -97,6 +100,30 @@ function App() {
                     element={
                         <ProtectedRoute allowedRoles={['admin']}>
                             <ProductsPage />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/categories"
+                    element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                            <CategoriesPage />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/products/new"
+                    element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                            <ProductFormPage />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/products/:productId"
+                    element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                            <ProductFormPage />
                         </ProtectedRoute>
                     }
                 />

@@ -41,10 +41,15 @@ exports.register = async (req, res, next) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Create user - default to customer role if not specified
+        // Check if user table is empty to assign admin role to first user
+        const [allUsers] = await promisePool.query('SELECT COUNT(*) as count FROM users');
+        const isFirstUser = allUsers[0].count === 0;
+        const assignedRole = role ? role : (isFirstUser ? 'admin' : 'customer');
+
+        // Create user
         const [result] = await promisePool.query(
             'INSERT INTO users (email, password, full_name, role) VALUES (?, ?, ?, ?)',
-            [email, hashedPassword, name, role || 'customer']
+            [email, hashedPassword, name, assignedRole]
         );
 
         // Get created user
