@@ -17,9 +17,10 @@ const handleValidationErrors = (req, res, next) => {
 const registerValidation = [
     body('email').isEmail().withMessage('Please provide a valid email'),
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-    body('full_name').notEmpty().withMessage('Full name is required'),
+    body('name').notEmpty().withMessage('Name is required'),
     handleValidationErrors
 ];
+
 
 const loginValidation = [
     body('email').isEmail().withMessage('Please provide a valid email'),
