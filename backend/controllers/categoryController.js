@@ -110,9 +110,24 @@ exports.updateCategory = async (req, res, next) => {
 // @access  Private/Admin
 exports.deleteCategory = async (req, res, next) => {
     try {
+        const { id } = req.params;
+
+        // Check if any products use this category
+        const [products] = await promisePool.query(
+            'SELECT COUNT(*) as count FROM products WHERE category_id = ?',
+            [id]
+        );
+
+        if (products[0].count > 0) {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot delete — ${products[0].count} product(s) are using this category. Reassign or delete those products first.`
+            });
+        }
+
         const [result] = await promisePool.query(
             'DELETE FROM categories WHERE id = ?',
-            [req.params.id]
+            [id]
         );
 
         if (result.affectedRows === 0) {

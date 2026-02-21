@@ -73,28 +73,56 @@ const FloorPage = () => {
             toast.error(error.response?.data?.message || 'Failed to delete table');
         }
     };
-
     const handleTableClick = async (table) => {
         if (table.status === 'available') {
             try {
-                await api.put(`/tables/${table.id}`, { status: 'occupied' });
-                sessionStorage.setItem('selectedTable', JSON.stringify({ id: table.id, name: table.name, capacity: table.capacity }));
+                // Use PATCH instead of PUT — only sends the field being changed
+                await api.patch(`/tables/${table.id}/status`, { status: 'occupied' });
+                sessionStorage.setItem('selectedTable', JSON.stringify({
+                    id: table.id,
+                    name: table.table_number,
+                    seats: table.seats
+                }));
                 queryClient.invalidateQueries(['tables']);
-                window.location.href = '/register';
-                toast.success(`Opening POS for ${table.name}`);
+                toast.success(`Opening POS for ${table.table_number}`);
+                window.location.href = '/pos'; // use /pos not /register
             } catch (error) {
-                toast.error('Failed to select table');
+                toast.error(error.response?.data?.message || 'Failed to select table');
             }
+        } else if (table.status === 'occupied') {
+            // Allow reopening an occupied table to continue the order
+            sessionStorage.setItem('selectedTable', JSON.stringify({
+                id: table.id,
+                name: table.table_number,
+                seats: table.seats
+            }));
+            window.location.href = '/pos';
         } else {
-            toast.info(`${table.name} is currently ${table.status}`);
+            toast.error(`${table.table_number} is currently ${table.status} — cannot open`);
+        }
+    };
+
+    const cycleStatus = async (tableId, currentStatus, e) => {
+        e.stopPropagation();
+        const next = {
+            available: 'occupied',
+            occupied: 'reserved',
+            reserved: 'available'
+        };
+        const newStatus = next[currentStatus];
+        try {
+            await api.patch(`/tables/${tableId}/status`, { status: newStatus });
+            queryClient.invalidateQueries(['tables']);
+        } catch (error) {
+            toast.error('Failed to update status');
         }
     };
 
     const getStatusColor = (status) => {
         switch (status) {
-            case 'available': return '#52B788';
-            case 'occupied': return '#F77F00';
-            case 'reserved': return '#2D5F5D';
+            case 'available': return '#52B788';  // Light green
+            case 'occupied': return '#F77F00';  // Orange
+            case 'reserved': return '#1B4332';  // Dark green
             default: return '#999';
         }
     };
@@ -108,217 +136,239 @@ const FloorPage = () => {
         }
     };
 
+    const getStatusBgColor = (status) => {
+        switch (status) {
+            case 'available': return '#D8F3DC';  // Light green bg
+            case 'occupied': return '#FFF3E0';  // Orange bg
+            case 'reserved': return '#D8EFE4';  // Dark green bg
+            default: return '#f0f0f0';
+        }
+    };
+
     return (
-            <div className="floor-page">
-                <div className="page-header">
-                    <div>
-                        <h1>Floor Plan</h1>
-                        <p>Manage your restaurant floors and tables</p>
-                    </div>
-                    <div className="header-actions">
-                        <button
-                            className="btn btn-secondary"
-                            onClick={() => {
-                                setEditingFloor(null);
-                                setShowFloorModal(true);
-                            }}
-                        >
-                            <Grid3x3 size={18} />
-                            New Floor
-                        </button>
-                        <button
-                            className="btn btn-primary"
-                            onClick={() => {
-                                setEditingTable(null);
-                                setShowTableModal(true);
-                            }}
-                            disabled={!selectedFloor}
-                        >
-                            <Plus size={18} />
-                            New Table
-                        </button>
-                    </div>
+        <div className="floor-page">
+            <div className="page-header">
+                <div>
+                    <h1>Floor Plan</h1>
+                    <p>Manage your restaurant floors and tables</p>
                 </div>
-
-                {/* Floor Tabs */}
-                {floorsLoading ? (
-                    <div className="loading-container">
-                        <div className="spinner-large"></div>
-                    </div>
-                ) : floorsData && floorsData.length > 0 ? (
-                    <>
-                        <div className="floor-tabs">
-                            {floorsData.map(floor => (
-                                <div
-                                    key={floor.id}
-                                    className={`floor-tab ${selectedFloor === floor.id ? 'active' : ''}`}
-                                    onClick={() => setSelectedFloor(floor.id)}
-                                >
-                                    <span>{floor.name}</span>
-                                    <div className="floor-tab-actions">
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setEditingFloor(floor);
-                                                setShowFloorModal(true);
-                                            }}
-                                        >
-                                            <Edit size={14} />
-                                        </button>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDeleteFloor(floor.id);
-                                            }}
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Tables Grid */}
-                        {tablesLoading ? (
-                            <div className="loading-container">
-                                <div className="spinner-large"></div>
-                                <p>Loading tables...</p>
-                            </div>
-                        ) : tablesData && tablesData.length > 0 ? (
-                            <div className="tables-section">
-                                <div className="tables-header">
-                                    <h2>Tables</h2>
-                                    <div className="status-legend">
-                                        <div className="legend-item">
-                                            <div className="legend-dot" style={{ background: '#52B788' }}></div>
-                                            <span>Available</span>
-                                        </div>
-                                        <div className="legend-item">
-                                            <div className="legend-dot" style={{ background: '#F77F00' }}></div>
-                                            <span>Occupied</span>
-                                        </div>
-                                        <div className="legend-item">
-                                            <div className="legend-dot" style={{ background: '#2D5F5D' }}></div>
-                                            <span>Reserved</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="tables-grid">
-                                    {tablesData.map(table => (
-                                        <div
-                                            key={table.id}
-                                            className={`table-card ${table.status}`}
-                                            onClick={() => handleTableClick(table)}
-                                            style={{ borderColor: getStatusColor(table.status) }}
-                                        >
-                                            <div className="table-header">
-                                                <h3>{table.name}</h3>
-                                                <div
-                                                    className="status-badge"
-                                                    style={{ background: getStatusColor(table.status) }}
-                                                >
-                                                    {getStatusLabel(table.status)}
-                                                </div>
-                                            </div>
-                                            <div className="table-info">
-                                                <div className="table-capacity">
-                                                    <Users size={16} />
-                                                    <span>{table.capacity} seats</span>
-                                                </div>
-                                            </div>
-                                            <div className="table-actions">
-                                                <button
-                                                    className="action-btn"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setEditingTable(table);
-                                                        setShowTableModal(true);
-                                                    }}
-                                                >
-                                                    <Edit size={16} />
-                                                </button>
-                                                <button
-                                                    className="action-btn"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDeleteTable(table.id);
-                                                    }}
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="empty-state">
-                                <Users size={48} />
-                                <p>No tables on this floor</p>
-                                <button
-                                    className="btn btn-primary"
-                                    onClick={() => {
-                                        setEditingTable(null);
-                                        setShowTableModal(true);
-                                    }}
-                                >
-                                    <Plus size={18} />
-                                    Add Your First Table
-                                </button>
-                            </div>
-                        )}
-                    </>
-                ) : (
-                    <div className="empty-state">
-                        <Grid3x3 size={48} />
-                        <p>No floors configured</p>
-                        <button
-                            className="btn btn-primary"
-                            onClick={() => {
-                                setEditingFloor(null);
-                                setShowFloorModal(true);
-                            }}
-                        >
-                            <Plus size={18} />
-                            Create Your First Floor
-                        </button>
-                    </div>
-                )}
-
-                {/* Floor Modal */}
-                {showFloorModal && (
-                    <FloorModal
-                        floor={editingFloor}
-                        onClose={() => {
-                            setShowFloorModal(false);
+                <div className="header-actions">
+                    <button
+                        className="btn btn-secondary"
+                        onClick={() => {
                             setEditingFloor(null);
+                            setShowFloorModal(true);
                         }}
-                        onSuccess={() => {
-                            queryClient.invalidateQueries(['floors']);
-                            setShowFloorModal(false);
-                            setEditingFloor(null);
-                        }}
-                    />
-                )}
-
-                {/* Table Modal */}
-                {showTableModal && (
-                    <TableModal
-                        table={editingTable}
-                        floorId={selectedFloor}
-                        onClose={() => {
-                            setShowTableModal(false);
+                    >
+                        <Grid3x3 size={18} />
+                        New Floor
+                    </button>
+                    <button
+                        className="btn btn-primary"
+                        onClick={() => {
                             setEditingTable(null);
+                            setShowTableModal(true);
                         }}
-                        onSuccess={() => {
-                            queryClient.invalidateQueries(['tables']);
-                            setShowTableModal(false);
-                            setEditingTable(null);
-                        }}
-                    />
-                )}
+                        disabled={!selectedFloor}
+                    >
+                        <Plus size={18} />
+                        New Table
+                    </button>
+                </div>
             </div>
+
+            {/* Floor Tabs */}
+            {floorsLoading ? (
+                <div className="loading-container">
+                    <div className="spinner-large"></div>
+                </div>
+            ) : floorsData && floorsData.length > 0 ? (
+                <>
+                    <div className="floor-tabs">
+                        {floorsData.map(floor => (
+                            <div
+                                key={floor.id}
+                                className={`floor-tab ${selectedFloor === floor.id ? 'active' : ''}`}
+                                onClick={() => setSelectedFloor(floor.id)}
+                            >
+                                <span>{floor.name}</span>
+                                <div className="floor-tab-actions">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingFloor(floor);
+                                            setShowFloorModal(true);
+                                        }}
+                                    >
+                                        <Edit size={14} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteFloor(floor.id);
+                                        }}
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Tables Grid */}
+                    {tablesLoading ? (
+                        <div className="loading-container">
+                            <div className="spinner-large"></div>
+                            <p>Loading tables...</p>
+                        </div>
+                    ) : tablesData && tablesData.length > 0 ? (
+                        <div className="tables-section">
+                            <div className="tables-header">
+                                <h2>Tables</h2>
+                                <div className="status-legend">
+                                    <div className="legend-item">
+                                        <div className="legend-dot" style={{ background: '#52B788' }}></div>
+                                        <span>Available</span>
+                                    </div>
+                                    <div className="legend-item">
+                                        <div className="legend-dot" style={{ background: '#F77F00' }}></div>
+                                        <span>Occupied</span>
+                                    </div>
+                                    <div className="legend-item">
+                                        <div className="legend-dot" style={{ background: '#1B4332' }}></div>
+                                        <span>Reserved</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="tables-grid">
+                                {tablesData.map(table => (
+                                    <div
+                                        key={table.id}
+                                        className={`table-card ${table.status}`}
+                                        onClick={() => handleTableClick(table)}
+                                        style={{
+                                            borderColor: getStatusColor(table.status),
+                                            borderWidth: '2px',
+                                            borderStyle: 'solid',
+                                            backgroundColor: getStatusBgColor(table.status),
+                                            cursor: table.status === 'reserved' ? 'not-allowed' : 'pointer',
+                                            opacity: table.status === 'reserved' ? 0.8 : 1,
+                                        }}
+                                    >
+                                        <div className="table-header">
+                                            <h3>{table.table_number || table.name}</h3>
+                                            <button
+                                                className="table-status-badge"
+                                                onClick={(e) => cycleStatus(table.id, table.status, e)}
+                                                style={{
+                                                    color: getStatusColor(table.status),
+                                                    background: getStatusBgColor(table.status),
+                                                    border: 'none',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                {getStatusLabel(table.status)}
+                                            </button>
+                                        </div>
+                                        <div className="table-info">
+                                            <div className="table-capacity">
+                                                <Users size={16} />
+                                                <span>{table.seats || table.capacity} seats</span>
+                                            </div>
+                                        </div>
+                                        <div className="table-actions">
+                                            <button
+                                                className="action-btn"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setEditingTable(table);
+                                                    setShowTableModal(true);
+                                                }}
+                                            >
+                                                <Edit size={16} />
+                                            </button>
+                                            <button
+                                                className="action-btn"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteTable(table.id);
+                                                }}
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="empty-state">
+                            <Users size={48} />
+                            <p>No tables on this floor</p>
+                            <button
+                                className="btn btn-primary"
+                                onClick={() => {
+                                    setEditingTable(null);
+                                    setShowTableModal(true);
+                                }}
+                            >
+                                <Plus size={18} />
+                                Add Your First Table
+                            </button>
+                        </div>
+                    )}
+                </>
+            ) : (
+                <div className="empty-state">
+                    <Grid3x3 size={48} />
+                    <p>No floors configured</p>
+                    <button
+                        className="btn btn-primary"
+                        onClick={() => {
+                            setEditingFloor(null);
+                            setShowFloorModal(true);
+                        }}
+                    >
+                        <Plus size={18} />
+                        Create Your First Floor
+                    </button>
+                </div>
+            )}
+
+            {/* Floor Modal */}
+            {showFloorModal && (
+                <FloorModal
+                    floor={editingFloor}
+                    onClose={() => {
+                        setShowFloorModal(false);
+                        setEditingFloor(null);
+                    }}
+                    onSuccess={() => {
+                        queryClient.invalidateQueries(['floors']);
+                        setShowFloorModal(false);
+                        setEditingFloor(null);
+                    }}
+                />
+            )}
+
+            {/* Table Modal */}
+            {showTableModal && (
+                <TableModal
+                    table={editingTable}
+                    floorId={selectedFloor}
+                    onClose={() => {
+                        setShowTableModal(false);
+                        setEditingTable(null);
+                    }}
+                    onSuccess={() => {
+                        queryClient.invalidateQueries(['tables']);
+                        setShowTableModal(false);
+                        setEditingTable(null);
+                    }}
+                />
+            )}
+        </div>
     );
 };
 
@@ -382,12 +432,11 @@ const FloorModal = ({ floor, onClose, onSuccess }) => {
     );
 };
 
-// Table Modal Component
 const TableModal = ({ table, floorId, onClose, onSuccess }) => {
     const [formData, setFormData] = useState({
         floor_id: table?.floor_id || floorId,
-        name: table?.name || '',
-        capacity: table?.capacity || 4,
+        table_number: table?.table_number || table?.name || '',
+        seats: table?.seats || table?.capacity || 4,
         status: table?.status || 'available'
     });
 
@@ -420,24 +469,24 @@ const TableModal = ({ table, floorId, onClose, onSuccess }) => {
 
                 <form onSubmit={handleSubmit} className="modal-body">
                     <div className="form-group">
-                        <label>Table Name *</label>
+                        <label>Table Number *</label>
                         <input
                             type="text"
                             className="form-control"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            value={formData.table_number}
+                            onChange={(e) => setFormData({ ...formData, table_number: e.target.value })}
                             placeholder="e.g., Table 1, VIP Table"
                             required
                         />
                     </div>
 
                     <div className="form-group">
-                        <label>Capacity *</label>
+                        <label>Seats *</label>
                         <input
                             type="number"
                             className="form-control"
-                            value={formData.capacity}
-                            onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) })}
+                            value={formData.seats}
+                            onChange={(e) => setFormData({ ...formData, seats: parseInt(e.target.value) || 4 })}
                             min="1"
                             max="20"
                             required
