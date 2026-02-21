@@ -1,0 +1,391 @@
+/* ============================================================
+   PAYMENTS PAGE — terracotta palette
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+.payments-page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 1.75rem 4rem;
+    font-family: 'Inter', sans-serif;
+}
+
+/* ── Sub-nav (shared with orders/customers) ───────────────── */
+/* .orders-subnav and .subnav-tab are defined in OrdersPage.css,
+   but we re-declare here so PaymentsPage is self-contained. */
+.orders-subnav {
+    display: flex;
+    align-items: center;
+    border-bottom: 2px solid var(--border, #e5e7eb);
+    margin-bottom: 2rem;
+}
+
+.subnav-tab {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.8rem 1.25rem;
+    color: var(--text-secondary, #888);
+    font-size: 0.88rem;
+    font-weight: 500;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.18s, border-color 0.18s;
+    white-space: nowrap;
+}
+
+.subnav-tab:hover {
+    color: #B17457;
+}
+
+.subnav-tab.active {
+    color: #B17457;
+    border-bottom-color: #B17457;
+    font-weight: 600;
+}
+
+/* ── Page header ──────────────────────────────────────────── */
+.pp-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+    flex-wrap: wrap;
+}
+
+.pp-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+    margin: 0 0 0.2rem;
+}
+
+.pp-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #888);
+    margin: 0;
+}
+
+.pp-grand-total {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.15rem;
+}
+
+.pp-grand-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-secondary, #888);
+}
+
+.pp-grand-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #B17457;
+    letter-spacing: -0.5px;
+}
+
+/* ── Groups container ────────────────────────────────────── */
+.pp-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* ── Single group ────────────────────────────────────────── */
+.pg-group {
+    background: var(--bg-card, #fff);
+    border: 1.5px solid var(--border, #e5e7eb);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.pg-group.open {
+    border-color: rgba(177, 116, 87, .35);
+    box-shadow: 0 4px 16px rgba(177, 116, 87, .1);
+}
+
+/* Group header button */
+.pg-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 1rem 1.4rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    transition: background 0.15s;
+    gap: 1rem;
+}
+
+.pg-header:hover {
+    background: rgba(177, 116, 87, .04);
+}
+
+.pg-group.open .pg-header {
+    background: rgba(177, 116, 87, .05);
+    border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.pg-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.pg-chevron {
+    color: #B17457;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    transition: transform 0.18s;
+}
+
+/* Method icon bubble */
+.pg-method-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.method-cash {
+    background: rgba(39, 174, 96, .12);
+    color: #27ae60;
+}
+
+.method-card {
+    background: rgba(41, 128, 185, .12);
+    color: #2980b9;
+}
+
+.method-upi {
+    background: rgba(177, 116, 87, .14);
+    color: #B17457;
+}
+
+.method-bank {
+    background: rgba(139, 92, 246, .12);
+    color: #7c3aed;
+}
+
+.method-other {
+    background: rgba(107, 114, 128, .12);
+    color: #6b7280;
+}
+
+.pg-method-label {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+}
+
+.pg-count {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #aaa);
+    font-weight: 400;
+    white-space: nowrap;
+}
+
+.pg-group-total {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #B17457;
+    flex-shrink: 0;
+}
+
+/* ── Expanded rows ────────────────────────────────────────── */
+.pg-rows {
+    overflow-x: auto;
+    animation: slideDown 0.18s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.pg-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    min-width: 480px;
+}
+
+.pg-table thead {
+    background: rgba(177, 116, 87, .03);
+}
+
+.pg-table th {
+    padding: 0.6rem 1.2rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-secondary, #888);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.pg-table th.amt-col {
+    text-align: right;
+}
+
+.pg-row {
+    transition: background 0.12s;
+}
+
+.pg-row:hover {
+    background: rgba(177, 116, 87, .03);
+}
+
+.pg-table td {
+    padding: 0.7rem 1.2rem;
+    border-bottom: 1px solid var(--border, #f3f4f6);
+    color: var(--text-primary, #444);
+    vertical-align: middle;
+}
+
+.pg-table td.amt-col {
+    text-align: right;
+}
+
+.pg-order-num {
+    font-weight: 600;
+    color: #B17457;
+    font-size: 0.85rem;
+}
+
+.pg-ref {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #888);
+}
+
+.pg-amount {
+    font-weight: 700;
+}
+
+.muted {
+    color: var(--text-secondary, #bbb);
+}
+
+/* Subtotal row */
+.pg-subtotal-row td {
+    background: rgba(177, 116, 87, .05);
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+    border-top: 1.5px solid rgba(177, 116, 87, .2);
+    border-bottom: none;
+    font-size: 0.85rem;
+}
+
+.pg-subtotal-label {
+    color: var(--text-secondary, #666);
+    font-weight: 600;
+}
+
+/* ── Grand total footer ──────────────────────────────────── */
+.pp-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.4rem;
+    background: linear-gradient(to right, rgba(177, 116, 87, .06), rgba(177, 116, 87, .1));
+    border: 1.5px solid rgba(177, 116, 87, .25);
+    border-radius: 12px;
+    margin-top: 0.25rem;
+}
+
+.pp-footer-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary, #666);
+}
+
+.pp-footer-value {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #B17457;
+}
+
+/* ── Loading / empty ─────────────────────────────────────── */
+.pp-loading,
+.pp-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 4rem 2rem;
+    background: var(--bg-card, #fff);
+    border: 2px dashed var(--border, #e5e7eb);
+    border-radius: 14px;
+    color: var(--text-secondary, #888);
+    text-align: center;
+}
+
+.pp-loading {
+    color: #B17457;
+}
+
+.pp-empty svg {
+    opacity: 0.35;
+    color: #B17457;
+}
+
+.pp-empty p {
+    font-weight: 600;
+    margin: 0;
+    font-size: 1rem;
+}
+
+.pp-empty span {
+    font-size: 0.85rem;
+}
+
+/* ── Spinner ─────────────────────────────────────────────── */
+.spin {
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .payments-page {
+        padding: 0 1rem 2.5rem;
+    }
+
+    .pp-title {
+        font-size: 1.3rem;
+    }
+
+    .pp-grand-value {
+        font-size: 1.3rem;
+    }
+}

@@ -1,428 +1,301 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import {
-    Search,
-    Filter,
-    Eye,
-    Trash2,
-    Archive,
-    X,
-    Package,
-    User,
-    Calendar,
-    DollarSign
+    Search, Filter, Trash2, Archive,
+    Package, ChevronDown, Loader2,
+    ShoppingCart, CreditCard, Users
 } from 'lucide-react';
 import { format } from 'date-fns';
 import './OrdersPage.css';
 
-const OrdersPage = () => {
-    const queryClient = useQueryClient();
-    const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('');
-    const [selectedOrders, setSelectedOrders] = useState([]);
-    const [showDetailModal, setShowDetailModal] = useState(false);
-    const [selectedOrder, setSelectedOrder] = useState(null);
-    const [activeTab, setActiveTab] = useState('products');
+/* ─────────────────────────────────────
+   Status badge helper
+───────────────────────────────────── */
+const STATUS_META = {
+    draft: { label: 'Draft', cls: 'badge-amber' },
+    sent_to_kitchen: { label: 'Sent to Kitchen', cls: 'badge-blue' },
+    preparing: { label: 'Preparing', cls: 'badge-purple' },
+    completed: { label: 'Completed', cls: 'badge-green' },
+    paid: { label: 'Paid', cls: 'badge-green' },
+    cancelled: { label: 'Cancelled', cls: 'badge-red' },
+};
 
-    // Fetch orders
-    const { data: ordersData, isLoading } = useQuery({
+const StatusBadge = ({ status }) => {
+    const meta = STATUS_META[status] ?? { label: status, cls: 'badge-gray' };
+    return <span className={`order-badge ${meta.cls}`}>{meta.label}</span>;
+};
+
+/* ─────────────────────────────────────
+   Action dropdown (shown with rows selected)
+───────────────────────────────────── */
+const ActionDropdown = ({ count, onArchive, onDelete, disabled }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+    useEffect(() => {
+        const h = e => ref.current && !ref.current.contains(e.target) && setOpen(false);
+        document.addEventListener('mousedown', h);
+        return () => document.removeEventListener('mousedown', h);
+    }, []);
+
+    return (
+        <div className="action-dropdown" ref={ref}>
+            <button
+                className="action-drop-btn"
+                onClick={() => setOpen(v => !v)}
+                disabled={disabled}
+            >
+                Actions <ChevronDown size={14} />
+            </button>
+            {open && (
+                <div className="action-drop-menu">
+                    <button className="adm-item" onClick={() => { onArchive(); setOpen(false); }}>
+                        <Archive size={14} /> Archive
+                    </button>
+                    <button className="adm-item danger" onClick={() => { onDelete(); setOpen(false); }}>
+                        <Trash2 size={14} /> Delete
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+/* ─────────────────────────────────────
+   Orders Page
+───────────────────────────────────── */
+const OrdersPage = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const qc = useQueryClient();
+
+    const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
+    const [selected, setSelected] = useState([]);
+
+    /* ── Fetch orders with filters ──────────────── */
+    const params = new URLSearchParams();
+    if (statusFilter) params.set('status', statusFilter);
+
+    const { data: orders = [], isLoading } = useQuery({
         queryKey: ['orders', statusFilter],
         queryFn: async () => {
-            const url = statusFilter
-                ? `/orders?status=${statusFilter}`
-                : '/orders';
-            const response = await api.get(url);
-            return response.data.data;
+            const r = await api.get(`/orders?${params.toString()}`);
+            return r.data.data ?? [];
         }
     });
 
-    // Delete order mutation
-    const deleteMutation = useMutation({
-        mutationFn: async (orderId) => {
-            await api.delete(`/orders/${orderId}`);
-        },
-        onSuccess: () => {
-            toast.success('Order deleted successfully');
-            queryClient.invalidateQueries(['orders']);
-        },
-        onError: (error) => {
-            toast.error(error.response?.data?.message || 'Failed to delete order');
+    /* ── Local filters (search + date) ─────────── */
+    const filtered = orders.filter(o => {
+        if (search) {
+            const s = search.toLowerCase();
+            if (
+                !o.order_number?.toLowerCase().includes(s) &&
+                !o.id.toString().includes(s) &&
+                !o.customer_name?.toLowerCase().includes(s)
+            ) return false;
         }
+        if (dateFrom && new Date(o.order_date) < new Date(dateFrom)) return false;
+        if (dateTo && new Date(o.order_date) > new Date(dateTo + 'T23:59:59')) return false;
+        return true;
     });
 
-    // Bulk delete mutation
-    const bulkDeleteMutation = useMutation({
-        mutationFn: async (orderIds) => {
-            await Promise.all(orderIds.map(id => api.delete(`/orders/${id}`)));
-        },
-        onSuccess: () => {
-            toast.success('Orders deleted successfully');
-            setSelectedOrders([]);
-            queryClient.invalidateQueries(['orders']);
-        }
+    /* ── Mutations ──────────────────────────────── */
+    const archiveMut = useMutation({
+        mutationFn: async (ids) =>
+            Promise.all(ids.map(id => api.put(`/orders/${id}`, { status: 'cancelled' }))),
+        onSuccess: () => { toast.success('Archived'); setSelected([]); qc.invalidateQueries(['orders']); },
+        onError: () => toast.error('Archive failed')
     });
 
-    // Bulk archive mutation
-    const bulkArchiveMutation = useMutation({
-        mutationFn: async (orderIds) => {
-            await Promise.all(orderIds.map(id =>
-                api.put(`/orders/${id}`, { status: 'cancelled' })
-            ));
-        },
-        onSuccess: () => {
-            toast.success('Orders archived successfully');
-            setSelectedOrders([]);
-            queryClient.invalidateQueries(['orders']);
-        }
+    const deleteMut = useMutation({
+        mutationFn: async (ids) =>
+            Promise.all(ids.map(id => api.delete(`/orders/${id}`))),
+        onSuccess: () => { toast.success('Deleted'); setSelected([]); qc.invalidateQueries(['orders']); },
+        onError: (e) => toast.error(e.response?.data?.message || 'Delete failed')
     });
 
-    // WebSocket for real-time updates
-    useEffect(() => {
-        const socket = window.io ? window.io('http://localhost:5000') : null;
+    /* ── Selection helpers ──────────────────────── */
+    const toggleSelect = id =>
+        setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-        if (socket) {
-            socket.on('order:updated', () => {
-                queryClient.invalidateQueries(['orders']);
-            });
+    const toggleAll = () =>
+        setSelected(selected.length === filtered.length ? [] : filtered.map(o => o.id));
 
-            socket.on('order:created', () => {
-                queryClient.invalidateQueries(['orders']);
-            });
-
-            return () => {
-                socket.off('order:updated');
-                socket.off('order:created');
-                socket.disconnect();
-            };
-        }
-    }, [queryClient]);
-
-    const filteredOrders = ordersData?.filter(order =>
-        order.id.toString().includes(searchTerm) ||
-        order.customer_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    const draftSelected = selected.filter(id =>
+        orders.find(o => o.id === id)?.status === 'draft'
     );
 
-    const handleSelectOrder = (orderId) => {
-        setSelectedOrders(prev =>
-            prev.includes(orderId)
-                ? prev.filter(id => id !== orderId)
-                : [...prev, orderId]
-        );
+    const handleArchive = () => {
+        if (!draftSelected.length) { toast.error('Select draft orders to archive'); return; }
+        if (!window.confirm(`Archive ${draftSelected.length} draft order(s)?`)) return;
+        archiveMut.mutate(draftSelected);
     };
 
-    const handleSelectAll = () => {
-        if (selectedOrders.length === filteredOrders?.length) {
-            setSelectedOrders([]);
-        } else {
-            setSelectedOrders(filteredOrders?.map(o => o.id) || []);
-        }
+    const handleDelete = () => {
+        if (!draftSelected.length) { toast.error('Can only delete draft orders'); return; }
+        if (!window.confirm(`Delete ${draftSelected.length} draft order(s)?`)) return;
+        deleteMut.mutate(draftSelected);
     };
 
-    const handleBulkDelete = () => {
-        if (!confirm(`Delete ${selectedOrders.length} order(s)?`)) return;
-        bulkDeleteMutation.mutate(selectedOrders);
-    };
+    const isBusy = archiveMut.isPending || deleteMut.isPending;
 
-    const handleBulkArchive = () => {
-        if (!confirm(`Archive ${selectedOrders.length} order(s)?`)) return;
-        bulkArchiveMutation.mutate(selectedOrders);
-    };
-
-    const handleViewDetails = (order) => {
-        setSelectedOrder(order);
-        setActiveTab('products');
-        setShowDetailModal(true);
-    };
-
-    const getStatusBadge = (status) => {
-        const styles = {
-            draft: { bg: '#95959520', color: '#959595' },
-            confirmed: { bg: '#F4A26120', color: '#F4A261' },
-            preparing: { bg: '#2D5F5D20', color: '#2D5F5D' },
-            ready: { bg: '#52B78820', color: '#52B788' },
-            completed: { bg: '#52B78820', color: '#52B788' },
-            cancelled: { bg: '#D6282820', color: '#D62828' }
-        };
-        const style = styles[status] || styles.draft;
-        return (
-            <span
-                className="status-badge"
-                style={{ background: style.bg, color: style.color }}
-            >
-                {status}
-            </span>
-        );
-    };
+    /* ── Sub-nav active detection ───────────────── */
+    const activePath = location.pathname;
 
     return (
         <div className="orders-page">
-            <div className="page-header">
+
+            {/* Sub-nav tabs */}
+            <div className="orders-subnav">
+                <Link to="/orders" className={`subnav-tab ${activePath === '/orders' ? 'active' : ''}`}>
+                    <ShoppingCart size={15} /> Orders
+                </Link>
+                <Link to="/payments" className={`subnav-tab ${activePath === '/payments' ? 'active' : ''}`}>
+                    <CreditCard size={15} /> Payment
+                </Link>
+                <Link to="/customers" className={`subnav-tab ${activePath === '/customers' ? 'active' : ''}`}>
+                    <Users size={15} /> Customer
+                </Link>
+            </div>
+
+            {/* Page header */}
+            <div className="op-header">
                 <div>
-                    <h1>Order Management</h1>
-                    <p>View and manage all orders</p>
+                    <h1 className="op-title">Orders</h1>
+                    <p className="op-subtitle">View and manage all POS orders</p>
                 </div>
             </div>
 
-            {/* Filters and Actions */}
-            <div className="orders-toolbar">
-                <div className="search-box">
-                    <Search size={20} />
+            {/* Toolbar */}
+            <div className="op-toolbar">
+                {/* Search */}
+                <div className="op-search">
+                    <Search size={16} />
                     <input
                         type="text"
-                        placeholder="Search by order # or customer..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search by order #, customer…"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
                     />
                 </div>
 
-                <div className="filter-group">
-                    <Filter size={18} />
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                    >
+                {/* Status filter */}
+                <div className="op-filter-group">
+                    <Filter size={14} />
+                    <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
                         <option value="">All Status</option>
                         <option value="draft">Draft</option>
-                        <option value="confirmed">Confirmed</option>
+                        <option value="sent_to_kitchen">Sent to Kitchen</option>
                         <option value="preparing">Preparing</option>
-                        <option value="ready">Ready</option>
                         <option value="completed">Completed</option>
+                        <option value="paid">Paid</option>
                         <option value="cancelled">Cancelled</option>
                     </select>
                 </div>
 
-                {selectedOrders.length > 0 && (
-                    <div className="bulk-actions">
-                        <span>{selectedOrders.length} selected</span>
-                        <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={handleBulkArchive}
-                        >
-                            <Archive size={16} />
-                            Archive
-                        </button>
-                        <button
-                            className="btn btn-danger btn-sm"
-                            onClick={handleBulkDelete}
-                        >
-                            <Trash2 size={16} />
-                            Delete
-                        </button>
+                {/* Date range */}
+                <div className="op-date-range">
+                    <input
+                        type="date"
+                        value={dateFrom}
+                        onChange={e => setDateFrom(e.target.value)}
+                        title="From date"
+                    />
+                    <span className="date-sep">–</span>
+                    <input
+                        type="date"
+                        value={dateTo}
+                        onChange={e => setDateTo(e.target.value)}
+                        title="To date"
+                    />
+                </div>
+
+                {/* Bulk actions (when selected) */}
+                {selected.length > 0 && (
+                    <div className="op-bulk">
+                        <span className="bulk-count">{selected.length} Selected</span>
+                        <ActionDropdown
+                            count={selected.length}
+                            onArchive={handleArchive}
+                            onDelete={handleDelete}
+                            disabled={isBusy}
+                        />
                     </div>
                 )}
             </div>
 
-            {/* Orders Table */}
+            {/* Table */}
             {isLoading ? (
-                <div className="loading-container">
-                    <div className="spinner-large"></div>
-                    <p>Loading orders...</p>
+                <div className="op-loading">
+                    <Loader2 className="spin" size={32} />
+                    <p>Loading orders…</p>
                 </div>
-            ) : filteredOrders && filteredOrders.length > 0 ? (
-                <div className="orders-table-container">
-                    <table className="orders-table">
+            ) : filtered.length > 0 ? (
+                <div className="op-table-wrap">
+                    <table className="op-table">
                         <thead>
                             <tr>
                                 <th>
                                     <input
                                         type="checkbox"
-                                        checked={selectedOrders.length === filteredOrders.length}
-                                        onChange={handleSelectAll}
+                                        className="op-checkbox"
+                                        checked={selected.length === filtered.length && filtered.length > 0}
+                                        onChange={toggleAll}
                                     />
                                 </th>
                                 <th>Order #</th>
+                                <th>Session</th>
                                 <th>Date</th>
-                                <th>Customer</th>
-                                <th>Type</th>
-                                <th>Status</th>
                                 <th>Total</th>
-                                <th>Actions</th>
+                                <th>Customer</th>
+                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredOrders.map(order => (
-                                <tr key={order.id}>
-                                    <td>
+                            {filtered.map(order => (
+                                <tr
+                                    key={order.id}
+                                    className="op-row"
+                                    onClick={e => {
+                                        if (e.target.type === 'checkbox') return;
+                                        navigate(`/orders/${order.id}`);
+                                    }}
+                                >
+                                    <td onClick={e => e.stopPropagation()}>
                                         <input
                                             type="checkbox"
-                                            checked={selectedOrders.includes(order.id)}
-                                            onChange={() => handleSelectOrder(order.id)}
+                                            className="op-checkbox"
+                                            checked={selected.includes(order.id)}
+                                            onChange={() => toggleSelect(order.id)}
                                         />
                                     </td>
-                                    <td className="order-number">#{order.id}</td>
-                                    <td>{format(new Date(order.created_at), 'MMM dd, yyyy HH:mm')}</td>
-                                    <td>{order.customer_name || 'Walk-in'}</td>
-                                    <td>
-                                        <span className="order-type-badge">{order.order_type}</span>
+                                    <td className="order-num">{order.order_number ?? `#${order.id}`}</td>
+                                    <td className="order-session">
+                                        {order.session_id ? `S-${order.session_id}` : '—'}
                                     </td>
-                                    <td>{getStatusBadge(order.status)}</td>
-                                    <td className="order-total">₹{order.total_amount?.toFixed(2) || '0.00'}</td>
-                                    <td>
-                                        <div className="action-buttons">
-                                            <button
-                                                className="action-btn view"
-                                                onClick={() => handleViewDetails(order)}
-                                                title="View Details"
-                                            >
-                                                <Eye size={16} />
-                                            </button>
-                                            {order.status === 'draft' && (
-                                                <button
-                                                    className="action-btn delete"
-                                                    onClick={() => deleteMutation.mutate(order.id)}
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </td>
+                                    <td>{order.order_date
+                                        ? format(new Date(order.order_date), 'dd MMM yyyy, h:mm a')
+                                        : '—'}</td>
+                                    <td className="order-total">₹{Number(order.total_amount || 0).toFixed(2)}</td>
+                                    <td>{order.customer_name || <span className="muted">Walk-in</span>}</td>
+                                    <td><StatusBadge status={order.status} /></td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
             ) : (
-                <div className="empty-state">
+                <div className="op-empty">
                     <Package size={48} />
                     <p>No orders found</p>
-                    <span>Orders will appear here once created</span>
+                    <span>Orders will appear here once created in the POS</span>
                 </div>
             )}
-
-            {/* Order Detail Modal */}
-            {showDetailModal && selectedOrder && (
-                <OrderDetailModal
-                    order={selectedOrder}
-                    activeTab={activeTab}
-                    setActiveTab={setActiveTab}
-                    onClose={() => {
-                        setShowDetailModal(false);
-                        setSelectedOrder(null);
-                    }}
-                />
-            )}
-        </div>
-    );
-};
-
-// Order Detail Modal Component
-const OrderDetailModal = ({ order, activeTab, setActiveTab, onClose }) => {
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content large" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2>Order #{order.id}</h2>
-                    <button className="close-btn" onClick={onClose}>
-                        <X size={24} />
-                    </button>
-                </div>
-
-                {/* Order Info */}
-                <div className="order-info-grid">
-                    <div className="info-item">
-                        <Calendar size={18} />
-                        <div>
-                            <span className="info-label">Date</span>
-                            <span className="info-value">
-                                {format(new Date(order.created_at), 'MMM dd, yyyy HH:mm')}
-                            </span>
-                        </div>
-                    </div>
-                    <div className="info-item">
-                        <User size={18} />
-                        <div>
-                            <span className="info-label">Customer</span>
-                            <span className="info-value">{order.customer_name || 'Walk-in'}</span>
-                        </div>
-                    </div>
-                    <div className="info-item">
-                        <Package size={18} />
-                        <div>
-                            <span className="info-label">Type</span>
-                            <span className="info-value">{order.order_type}</span>
-                        </div>
-                    </div>
-                    <div className="info-item">
-                        <DollarSign size={18} />
-                        <div>
-                            <span className="info-label">Total</span>
-                            <span className="info-value">₹{order.total_amount?.toFixed(2)}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Tabs */}
-                <div className="modal-tabs">
-                    <button
-                        className={`tab-btn ${activeTab === 'products' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('products')}
-                    >
-                        Products
-                    </button>
-                    <button
-                        className={`tab-btn ${activeTab === 'extra' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('extra')}
-                    >
-                        Extra Info
-                    </button>
-                </div>
-
-                <div className="modal-body">
-                    {activeTab === 'products' ? (
-                        <div className="products-tab">
-                            <table className="items-table">
-                                <thead>
-                                    <tr>
-                                        <th>Product</th>
-                                        <th>Quantity</th>
-                                        <th>Price</th>
-                                        <th>Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {order.items?.map((item, index) => (
-                                        <tr key={index}>
-                                            <td>{item.product_name}</td>
-                                            <td>{item.quantity}</td>
-                                            <td>₹{item.price?.toFixed(2)}</td>
-                                            <td>₹{(item.price * item.quantity).toFixed(2)}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    ) : (
-                        <div className="extra-tab">
-                            <div className="info-section">
-                                <h4>Order Details</h4>
-                                <div className="detail-row">
-                                    <span>Status:</span>
-                                    <span>{order.status}</span>
-                                </div>
-                                <div className="detail-row">
-                                    <span>Session ID:</span>
-                                    <span>{order.session_id || 'N/A'}</span>
-                                </div>
-                                {order.table_name && (
-                                    <div className="detail-row">
-                                        <span>Table:</span>
-                                        <span>{order.table_name}</span>
-                                    </div>
-                                )}
-                                {order.notes && (
-                                    <div className="detail-row">
-                                        <span>Notes:</span>
-                                        <span>{order.notes}</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
         </div>
     );
 };
