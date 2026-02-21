@@ -18,16 +18,16 @@ exports.getPayments = async (req, res, next) => {
 // Process payment
 exports.processPayment = async (req, res, next) => {
     try {
-        const { order_id, payment_method, amount, upi_id, transaction_reference } = req.body;
+        const { order_id, payment_method_id, payment_type, amount } = req.body;
 
-        if (!order_id || !payment_method || !amount) {
-            return res.status(400).json({ success: false, message: 'Please provide order_id, payment_method, and amount' });
+        if (!order_id || !payment_method_id || !payment_type || !amount) {
+            return res.status(400).json({ success: false, message: 'Please provide order_id, payment_method_id, payment_type, and amount' });
         }
 
         // Create payment
         const [result] = await promisePool.query(
-            'INSERT INTO payments (order_id, payment_method, amount, upi_id, transaction_reference, status) VALUES (?, ?, ?, ?, ?, ?)',
-            [order_id, payment_method, amount, upi_id, transaction_reference, 'completed']
+            'INSERT INTO payments (order_id, payment_method_id, payment_type, amount, status) VALUES (?, ?, ?, ?, ?)',
+            [order_id, payment_method_id, payment_type, amount, 'completed']
         );
 
         // Check if order is fully paid
